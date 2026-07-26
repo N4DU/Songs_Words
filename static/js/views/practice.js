@@ -82,7 +82,9 @@ function renderCurrent() {
   applySongTheme(item.song);
   root_.innerHTML = '';
   const wrap = el('div', 'practice-wrap');
-  const top = el('div');
+  // Cover, progress bar and card travel together as one centered block,
+  // with the header resting right on top of the card.
+  const group = el('div', 'practice-group');
 
   const header = el('div', 'practice-header');
   header.appendChild(thumb(item.song, 'practice-cover'));
@@ -91,13 +93,12 @@ function renderCurrent() {
   progressText = el('div', 'practice-progress');
   info.appendChild(progressText);
   header.appendChild(info);
-  top.appendChild(header);
+  group.appendChild(header);
 
   const bar = el('div', 'progress-bar');
   progressFill = el('div');
   bar.appendChild(progressFill);
-  top.appendChild(bar);
-  wrap.appendChild(top);
+  group.appendChild(bar);
 
   promptCard = el('div', 'card prompt-card');
   promptCard.appendChild(el('div', 'prompt-label',
@@ -112,8 +113,11 @@ function renderCurrent() {
 
   feedback = el('div', 'feedback');
   promptCard.appendChild(feedback);
-  wrap.appendChild(promptCard);
-  wrap.appendChild(el('div')); // bottom spacer: mirrors the header row
+  group.appendChild(promptCard);
+
+  wrap.appendChild(el('div')); // top spacer
+  wrap.appendChild(group);
+  wrap.appendChild(el('div')); // bottom spacer
   root_.appendChild(wrap);
 
   root_.appendChild(hints([
