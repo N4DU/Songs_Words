@@ -83,9 +83,10 @@ function renderCurrent() {
   applySongTheme(item.song);
   root_.innerHTML = '';
   const wrap = el('div', 'practice-wrap');
-  // Cover, progress bar and card travel together as one centered block,
-  // with the header resting right on top of the card.
+  // Only the card is centered; cover and progress bar live in .practice-top,
+  // absolutely anchored right above it (see styles.css: --practice-lift).
   const group = el('div', 'practice-group');
+  const top = el('div', 'practice-top');
 
   const header = el('div', 'practice-header');
   header.appendChild(thumb(item.song, 'practice-cover'));
@@ -94,12 +95,13 @@ function renderCurrent() {
   progressText = el('div', 'practice-progress');
   info.appendChild(progressText);
   header.appendChild(info);
-  group.appendChild(header);
+  top.appendChild(header);
 
   const bar = el('div', 'progress-bar');
   progressFill = el('div');
   bar.appendChild(progressFill);
-  group.appendChild(bar);
+  top.appendChild(bar);
+  group.appendChild(top);
 
   promptCard = el('div', 'card prompt-card');
   promptCard.appendChild(el('div', 'prompt-label',
