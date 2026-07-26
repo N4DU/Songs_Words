@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.png" alt="Project by N4DU — now showing: Fable 5" width="100%">
+  <img src="docs/banner.jpeg" alt="Project by N4DU — now showing: Fable 5" width="100%">
 </p>
 
 <h1 align="center">🎵 Songs & Words</h1>
@@ -35,16 +35,6 @@ No accounts, no cloud, no tracking. Everything lives in a local SQLite database 
 | **Home** — your library, with a living aurora background tinted by your own covers. It reshuffles on every visit. | **Practice** — the song's cover becomes the atmosphere: blurred, darkened, breathing slowly behind the card. |
 | ![Song editor with word list](docs/screenshots/editor.png) | ![Practice summary with accuracy](docs/screenshots/summary.png) |
 | **Editor** — title, cover image and the word pairs you collected from the song. | **Summary** — first-try accuracy at the end of each session. |
-
-## Features
-
-- **🎤 Song-based decks** — each song holds the English/Spanish word pairs you learned from it
-- **⌨️ 100% keyboard-driven** — the entire app is played with `↑ ↓ ← →`, `Enter`, `Space` and `Esc`; the mouse is optional
-- **🌌 Living visuals** — an aurora background extracted from your cover art, randomized on every visit; during practice the full cover is woven into the backdrop, YouTube-Music style
-- **🔁 Smart drilling** — missed words come back at the end of the song until you get them (optional)
-- **⚙️ Serious settings** — practice direction (ES→EN / EN→ES), retry missed words, accent-insensitive checking
-- **🚀 Zero friction** — `python main.py` opens your browser on a free port; closing the tab shuts the server down cleanly
-- **🔒 Local by design** — your songs, words and images never leave the `data/` folder (gitignored)
 
 ## Getting started
 
