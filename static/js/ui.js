@@ -38,7 +38,22 @@ export function applyFocus(nodes, index) {
   if (active) active.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
-// Modal confirmation dialog driven by ←/→, Enter and Escape.
+// Transient one-line message: gentle feedback when a key press can't act,
+// so the keyboard user is never left wondering if the app heard them.
+let toastNode = null;
+let toastTimer = null;
+export function toast(message) {
+  if (!toastNode) {
+    toastNode = el('div', 'toast');
+    document.body.appendChild(toastNode);
+  }
+  toastNode.textContent = message;
+  toastNode.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastNode.classList.remove('visible'), 2400);
+}
+
+// Modal confirmation dialog driven by the arrow keys, Enter and Escape.
 // Returns an object with onKey; calls done(true/false) once decided.
 export function confirmDialog(message, done) {
   const overlay = el('div', 'overlay');
@@ -62,7 +77,7 @@ export function confirmDialog(message, done) {
 
   return {
     onKey(e) {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      if (e.key.startsWith('Arrow')) {
         idx = idx === 0 ? 1 : 0;
         applyFocus(buttons, idx);
       } else if (e.key === 'Enter') {
