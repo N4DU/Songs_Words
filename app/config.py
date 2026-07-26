@@ -1,4 +1,4 @@
-"""Rutas y constantes compartidas por toda la aplicación."""
+"""Paths and constants shared across the application."""
 
 from pathlib import Path
 
@@ -12,7 +12,8 @@ DB_PATH = DATA_DIR / "songs_words.db"
 HOST = "127.0.0.1"
 PREFERRED_PORT = 8765
 
-# Segundos sin latidos del navegador antes de apagar el servidor.
-HEARTBEAT_GRACE = 12
+# Seconds to wait after the page says goodbye before shutting down
+# (a reload sends a new hello within this window and cancels it).
+SHUTDOWN_GRACE = 3
 
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
