@@ -1,15 +1,17 @@
-// Vista principal: lista de canciones, selección para practicar y acciones.
+// Main view: song list, practice selection and per-song actions.
+// The action buttons live above the list so they never scroll out of reach,
+// and "Practice selected" is focused when the app opens.
 
 import * as api from '../api.js';
 import { navigate, quitApp } from '../main.js';
 import { el, thumb, hints, applyFocus, confirmDialog } from '../ui.js';
 
 let songs = [];
-let zone = 'list';        // 'list' | 'buttons' | 'actions'
+let zone = 'buttons';     // 'buttons' | 'list' | 'actions'
 let listIdx = 0;
 let btnIdx = 0;
 let actionIdx = 0;
-let dialog = null;        // diálogo de confirmación activo
+let dialog = null;        // active confirmation dialog
 
 let listNodes = [];
 let buttonNodes = [];
@@ -19,9 +21,9 @@ let actionsMenu = null;
 export const songsView = {
   async mount(root) {
     songs = await api.getSongs();
-    zone = songs.length ? 'list' : 'buttons';
-    listIdx = Math.min(listIdx, Math.max(0, songs.length - 1));
+    zone = 'buttons';
     btnIdx = 0;
+    listIdx = Math.min(listIdx, Math.max(0, songs.length - 1));
     dialog = null;
     render(root);
   },
@@ -41,7 +43,16 @@ export const songsView = {
 function render(root) {
   root.innerHTML = '';
   root.appendChild(el('h1', '', '🎵 Songs & Words'));
-  root.appendChild(el('p', 'subtitle', 'Tu vocabulario en inglés, canción por canción.'));
+  root.appendChild(el('p', 'subtitle', 'Your English vocabulary, song by song.'));
+
+  const row = el('div', 'btn-row top-actions');
+  buttonNodes = [
+    button(row, '▶ Practice selected', 'primary', startSelected),
+    button(row, '＋ New song', '', () => navigate('editor')),
+    button(row, '⚙ Settings', '', () => navigate('settings')),
+    button(row, '✕ Exit', 'danger', quitApp),
+  ];
+  root.appendChild(row);
 
   listNodes = [];
   if (songs.length) {
@@ -52,7 +63,7 @@ function render(root) {
       const info = el('div', 'song-info');
       info.appendChild(el('div', 'song-title', song.title));
       info.appendChild(el('div', 'song-meta',
-        `${song.word_count} palabra${song.word_count === 1 ? '' : 's'}`));
+        `${song.word_count} word${song.word_count === 1 ? '' : 's'}`));
       item.appendChild(info);
       item.appendChild(el('div', 'song-check', song.selected ? '✓' : ''));
       item.onclick = () => { listIdx = i; setZone('list'); toggleSelected(); };
@@ -63,25 +74,16 @@ function render(root) {
   } else {
     const empty = el('div', 'empty-state');
     empty.appendChild(el('div', 'big', '🎧'));
-    empty.appendChild(el('p', '', 'Todavía no hay canciones. ¡Crea la primera!'));
+    empty.appendChild(el('p', '', 'No songs yet. Create your first one!'));
     root.appendChild(empty);
   }
 
-  const row = el('div', 'btn-row');
-  buttonNodes = [
-    button(row, '▶ Practicar seleccionadas', 'primary', startSelected),
-    button(row, '＋ Nueva canción', '', () => navigate('editor')),
-    button(row, '⚙ Configuración', '', () => navigate('settings')),
-    button(row, '✕ Salir', 'danger', quitApp),
-  ];
-  root.appendChild(row);
-
   root.appendChild(hints([
-    ['↑ ↓', 'moverse'],
-    ['Espacio', 'seleccionar'],
-    ['→', 'acciones'],
-    ['Enter', 'aceptar'],
-    ['Esc', 'salir'],
+    ['↑ ↓', 'navigate'],
+    ['Space', 'select'],
+    ['→', 'song actions'],
+    ['Enter', 'confirm'],
+    ['Esc', 'exit'],
   ]));
 
   refreshFocus();
@@ -102,18 +104,50 @@ function setZone(z) {
 function refreshFocus() {
   applyFocus(listNodes, zone === 'list' ? listIdx : -1);
   applyFocus(buttonNodes, zone === 'buttons' ? btnIdx : -1);
+  // The buttons sit at the top: make sure the header scrolls back into view.
+  if (zone === 'buttons') window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ---------- Zona: lista ----------
+// ---------- Zone: top buttons ----------
+
+function onButtonsKey(e) {
+  switch (e.key) {
+    case 'ArrowLeft':
+      if (btnIdx > 0) { btnIdx--; refreshFocus(); }
+      break;
+    case 'ArrowRight':
+      if (btnIdx < buttonNodes.length - 1) { btnIdx++; refreshFocus(); }
+      break;
+    case 'ArrowDown':
+      if (songs.length) setZone('list');
+      break;
+    case 'Enter':
+      buttonNodes[btnIdx].click();
+      break;
+    case 'Escape':
+      btnIdx = buttonNodes.length - 1; // "Exit"
+      refreshFocus();
+      break;
+    default:
+      return;
+  }
+  e.preventDefault();
+}
+
+function startSelected() {
+  if (songs.some((s) => s.selected)) navigate('practice', {});
+}
+
+// ---------- Zone: list ----------
 
 function onListKey(e) {
   switch (e.key) {
     case 'ArrowDown':
       if (listIdx < songs.length - 1) { listIdx++; refreshFocus(); }
-      else setZone('buttons');
       break;
     case 'ArrowUp':
       if (listIdx > 0) { listIdx--; refreshFocus(); }
+      else setZone('buttons');
       break;
     case ' ':
     case 'Enter':
@@ -123,9 +157,8 @@ function onListKey(e) {
       openActions();
       break;
     case 'Escape':
+      btnIdx = buttonNodes.length - 1; // "Exit"
       setZone('buttons');
-      btnIdx = buttonNodes.length - 1; // «Salir»
-      refreshFocus();
       break;
     default:
       return;
@@ -141,45 +174,15 @@ async function toggleSelected() {
   await api.setSelected(song.id, !!song.selected);
 }
 
-// ---------- Zona: botones inferiores ----------
-
-function onButtonsKey(e) {
-  switch (e.key) {
-    case 'ArrowLeft':
-      if (btnIdx > 0) { btnIdx--; refreshFocus(); }
-      break;
-    case 'ArrowRight':
-      if (btnIdx < buttonNodes.length - 1) { btnIdx++; refreshFocus(); }
-      break;
-    case 'ArrowUp':
-      if (songs.length) setZone('list');
-      break;
-    case 'Enter':
-      buttonNodes[btnIdx].click();
-      break;
-    case 'Escape':
-      btnIdx = buttonNodes.length - 1;
-      refreshFocus();
-      break;
-    default:
-      return;
-  }
-  e.preventDefault();
-}
-
-function startSelected() {
-  if (songs.some((s) => s.selected)) navigate('practice', {});
-}
-
-// ---------- Zona: menú de acciones de una canción ----------
+// ---------- Zone: per-song actions menu ----------
 
 function openActions() {
   const item = listNodes[listIdx];
   actionsMenu = el('div', 'song-actions');
   const acts = [
-    ['▶ Practicar', () => navigate('practice', { ids: [songs[listIdx].id] })],
-    ['✎ Editar', () => navigate('editor', { id: songs[listIdx].id })],
-    ['🗑 Eliminar', removeSong],
+    ['▶ Practice', () => navigate('practice', { ids: [songs[listIdx].id] })],
+    ['✎ Edit', () => navigate('editor', { id: songs[listIdx].id })],
+    ['🗑 Delete', removeSong],
   ];
   actionNodes = acts.map(([label, action]) => {
     const b = el('button', 'btn', label);
@@ -222,7 +225,7 @@ function onActionsKey(e) {
 
 function removeSong() {
   const song = songs[listIdx];
-  dialog = confirmDialog(`¿Eliminar «${song.title}» y todas sus palabras?`, async (yes) => {
+  dialog = confirmDialog(`Delete “${song.title}” and all its words?`, async (yes) => {
     dialog = null;
     closeActions();
     if (yes) {
