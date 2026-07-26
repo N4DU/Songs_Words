@@ -5,7 +5,7 @@
 <h1 align="center">🎵 Songs & Words</h1>
 
 <p align="center">
-  <strong>Learn English vocabulary through the songs you love.</strong><br>
+  <strong>Learn vocabulary in any language through the songs you love.</strong><br>
   A keyboard-first practice app: capture the words you didn't know from each song
   and drill them with dynamic, cover-tinted backgrounds.
 </p>
@@ -24,6 +24,10 @@
 Songs are full of words you *almost* know. **Songs & Words** turns that into a study system:
 every time a song teaches you something new, you save the word under that song — and later
 you practice them song by song, with the whole screen taking on the mood of that song's cover art.
+
+It works with any pair of languages: one column holds the word as it is sung, the other holds
+what it means to you. The interface itself is available in ten languages, selectable from the
+settings screen.
 
 No accounts, no cloud, no tracking. Everything lives in a local SQLite database on your machine.
 
