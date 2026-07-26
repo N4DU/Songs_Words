@@ -1,39 +1,68 @@
-// Per-song theme: extracts the dominant color from the cover art and turns
-// the practice screen into a rich, YT-Music-like gradient. A custom color
-// stored on the song overrides the automatic one.
+// Color engine: extracts dominant colors from cover art and drives the
+// ambient "aurora" background. On the home screen the palette is built
+// from your own songs' covers; during practice it comes from the current
+// song, YT-Music style. A custom color stored on a song overrides it.
 
-const cache = new Map();
-const DEFAULT_ACCENT = '#00acc1';
+const cache = new Map(); // song.id -> extracted hex (or null)
 
+async function songColor(song) {
+  if (song.color) return song.color;
+  if (!song.image) return null;
+  if (cache.has(song.id)) return cache.get(song.id);
+  const hex = await dominantColor(`/images/${song.image}`).catch(() => null);
+  cache.set(song.id, hex);
+  return hex;
+}
+
+// Practice: the whole screen takes the song's hue.
 export async function applySongTheme(song) {
-  let hex = song.color || null;
-  if (!hex && song.image) {
-    if (cache.has(song.id)) {
-      hex = cache.get(song.id);
-    } else {
-      hex = await dominantColor(`/images/${song.image}`).catch(() => null);
-      cache.set(song.id, hex);
-    }
+  setThemeVars(await songColor(song));
+}
+
+// Home: tint the aurora blobs with up to three covers, selected songs first.
+export async function applyAmbientFromSongs(songs) {
+  const pool = [...songs].sort((a, b) => (b.selected || 0) - (a.selected || 0));
+  const colors = [];
+  for (const song of pool) {
+    if (colors.length >= 3) break;
+    const hex = await songColor(song);
+    if (hex) colors.push(hex);
   }
-  setTheme(hex || DEFAULT_ACCENT);
+  const style = document.body.style;
+  ['--amb-1', '--amb-2', '--amb-3'].forEach((prop, i) => {
+    if (colors.length) {
+      const [h, s] = rgbToHsl(...hexToRgb(colors[i % colors.length]));
+      style.setProperty(prop, hslCss(h, clampSat(s), 0.38));
+    } else {
+      style.removeProperty(prop);
+    }
+  });
 }
 
 export function clearTheme() {
-  document.body.classList.remove('themed');
-  document.body.style.removeProperty('--theme-a');
-  document.body.style.removeProperty('--theme-b');
-  document.body.style.removeProperty('--theme-accent');
+  const style = document.body.style;
+  for (const prop of ['--theme-a', '--theme-b', '--theme-accent',
+                      '--amb-1', '--amb-2', '--amb-3']) {
+    style.removeProperty(prop);
+  }
 }
 
-// Deep gradient tones derived from the base color: a saturated dark shade
-// on top fading into an almost-black version of the same hue.
-function setTheme(hex) {
-  const [h, s] = rgbToHsl(...hexToRgb(hex));
-  const strength = Math.min(Math.max(s, 0.35), 0.7);
-  document.body.style.setProperty('--theme-a', hslCss(h, strength, 0.30));
-  document.body.style.setProperty('--theme-b', hslCss(h, strength * 0.8, 0.10));
-  document.body.style.setProperty('--theme-accent', hslCss(h, strength, 0.62));
-  document.body.classList.add('themed');
+// Deep gradient + blob tones derived from one base color: a saturated dark
+// shade on top fading into an almost-black version of the same hue.
+function setThemeVars(hex) {
+  const [h, s] = hex ? rgbToHsl(...hexToRgb(hex)) : rgbToHsl(77, 208, 225);
+  const st = clampSat(s);
+  const style = document.body.style;
+  style.setProperty('--theme-a', hslCss(h, st, 0.30));
+  style.setProperty('--theme-b', hslCss(h, st * 0.8, 0.10));
+  style.setProperty('--theme-accent', hslCss(h, st, 0.62));
+  style.setProperty('--amb-1', hslCss(h, st, 0.40));
+  style.setProperty('--amb-2', hslCss((h + 0.08) % 1, st, 0.35));
+  style.setProperty('--amb-3', hslCss((h + 0.92) % 1, st, 0.30));
+}
+
+function clampSat(s) {
+  return Math.min(Math.max(s, 0.35), 0.7);
 }
 
 // Downscales the image and picks the most frequent hue among reasonably

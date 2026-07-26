@@ -5,6 +5,7 @@
 import * as api from '../api.js';
 import { navigate, quitApp } from '../main.js';
 import { el, thumb, hints, applyFocus, confirmDialog } from '../ui.js';
+import { applyAmbientFromSongs } from '../color.js';
 
 let songs = [];
 let zone = 'buttons';     // 'buttons' | 'list' | 'actions'
@@ -26,6 +27,7 @@ export const songsView = {
     listIdx = Math.min(listIdx, Math.max(0, songs.length - 1));
     dialog = null;
     render(root);
+    applyAmbientFromSongs(songs);
   },
 
   unmount() {
