@@ -1,4 +1,4 @@
-// Configuración: dirección de la práctica (en qué idioma respondes).
+// Settings: practice direction (which language you answer in).
 
 import * as api from '../api.js';
 import { navigate } from '../main.js';
@@ -7,13 +7,13 @@ import { el, hints, applyFocus } from '../ui.js';
 const OPTIONS = [
   {
     value: 'es_to_en',
-    label: 'Español → Inglés',
-    desc: 'Ves la palabra en español y la escribes en inglés.',
+    label: 'Spanish → English',
+    desc: 'You see the word in Spanish and type it in English.',
   },
   {
     value: 'en_to_es',
-    label: 'Inglés → Español',
-    desc: 'Ves la palabra en inglés y la escribes en español.',
+    label: 'English → Spanish',
+    desc: 'You see the word in English and type it in Spanish.',
   },
 ];
 
@@ -54,8 +54,8 @@ export const settingsView = {
 };
 
 function render(root) {
-  root.appendChild(el('h1', '', '⚙ Configuración'));
-  root.appendChild(el('p', 'subtitle', 'Dirección de la práctica'));
+  root.appendChild(el('h1', '', '⚙ Settings'));
+  root.appendChild(el('p', 'subtitle', 'Practice direction'));
 
   nodes = OPTIONS.map((opt, i) => {
     const item = el('div', 'option-item');
@@ -70,9 +70,9 @@ function render(root) {
   });
 
   root.appendChild(hints([
-    ['↑ ↓', 'moverse'],
-    ['Enter', 'elegir'],
-    ['Esc', 'volver'],
+    ['↑ ↓', 'navigate'],
+    ['Enter', 'choose'],
+    ['Esc', 'back'],
   ]));
 
   applyFocus(nodes, idx);

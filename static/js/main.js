@@ -1,4 +1,4 @@
-// Punto de entrada: enrutador de vistas, teclado global y latidos al servidor.
+// Entry point: view router, global keyboard handling and server lifecycle.
 
 import * as api from './api.js';
 import { songsView } from './views/songs.js';
@@ -23,16 +23,16 @@ export function navigate(name, params = {}) {
   current.mount(root, params);
 }
 
-// Pantalla final cuando el usuario elige «Salir»: apaga el servidor
-// e intenta cerrar la pestaña.
+// Final screen when the user picks "Exit": stops the server
+// and tries to close the tab.
 export async function quitApp() {
   if (current && current.unmount) current.unmount();
   current = null;
   document.getElementById('app').innerHTML = `
     <div class="goodbye">
       <div class="big">👋</div>
-      <h2>¡Hasta luego!</h2>
-      <p>El servidor se apagó. Ya puedes cerrar esta pestaña.</p>
+      <h2>See you soon!</h2>
+      <p>The server has stopped. You can close this tab now.</p>
     </div>`;
   await api.shutdown();
   setTimeout(() => window.close(), 300);
@@ -42,8 +42,10 @@ document.addEventListener('keydown', (e) => {
   if (current && current.onKey) current.onKey(e);
 });
 
-// Latidos: si la pestaña se cierra, el servidor deja de recibirlos y se apaga.
-api.heartbeat();
-setInterval(api.heartbeat, 3000);
+// Lifecycle: say hello on load and goodbye when the page goes away.
+// A reload sends a new hello in time, so the server only stops when
+// the tab is really closed. No polling involved.
+api.hello();
+window.addEventListener('pagehide', () => navigator.sendBeacon('/api/goodbye'));
 
 navigate('songs');

@@ -1,16 +1,15 @@
-"""Punto de entrada: levanta el servidor local y abre la app en el navegador."""
+"""Entry point: starts the local server and opens the app in the browser."""
 
 import socket
 import threading
 import webbrowser
 
-from app import lifecycle
 from app.config import HOST, PREFERRED_PORT
 from app.server import create_app
 
 
 def find_free_port(preferred):
-    """Usa el puerto preferido si está libre; si no, pide uno al sistema."""
+    """Use the preferred port if free; otherwise ask the system for one."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
             s.bind((HOST, preferred))
@@ -25,11 +24,10 @@ def main():
     port = find_free_port(PREFERRED_PORT)
     url = f"http://{HOST}:{port}/"
 
-    lifecycle.start_watchdog()
     threading.Timer(0.8, webbrowser.open, args=(url,)).start()
 
-    print(f"Songs & Words corriendo en {url}")
-    print("Se cierra solo al cerrar la pestaña, o desde la opción «Salir».")
+    print(f"♪ Songs & Words running at {url}")
+    print("  It stops on its own when you close the tab, or from the Exit option.")
     app.run(host=HOST, port=port, debug=False)
 
 

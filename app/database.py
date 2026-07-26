@@ -1,4 +1,4 @@
-"""Acceso a SQLite: esquema y operaciones sobre canciones, palabras y ajustes."""
+"""SQLite access: schema and operations on songs, words and settings."""
 
 import sqlite3
 
@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS songs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     image TEXT,
+    color TEXT,
     selected INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -33,6 +34,14 @@ def init_db():
     IMAGES_DIR.mkdir(exist_ok=True)
     with _connect() as conn:
         conn.executescript(SCHEMA)
+        _migrate(conn)
+
+
+def _migrate(conn):
+    """Bring databases created by older versions up to date."""
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(songs)")]
+    if "color" not in columns:
+        conn.execute("ALTER TABLE songs ADD COLUMN color TEXT")
 
 
 def _connect():
@@ -42,12 +51,12 @@ def _connect():
     return conn
 
 
-# ---------- Canciones ----------
+# ---------- Songs ----------
 
 def list_songs():
     with _connect() as conn:
         rows = conn.execute(
-            """SELECT s.id, s.title, s.image, s.selected, s.created_at,
+            """SELECT s.id, s.title, s.image, s.color, s.selected, s.created_at,
                       COUNT(w.id) AS word_count
                FROM songs s LEFT JOIN words w ON w.song_id = s.id
                GROUP BY s.id ORDER BY s.created_at DESC, s.id DESC"""
@@ -69,26 +78,30 @@ def get_song(song_id):
     return result
 
 
-def create_song(title, image, words):
+def create_song(title, image, color, words):
     with _connect() as conn:
         cur = conn.execute(
-            "INSERT INTO songs (title, image) VALUES (?, ?)", (title, image)
+            "INSERT INTO songs (title, image, color) VALUES (?, ?, ?)",
+            (title, image, color),
         )
         song_id = cur.lastrowid
         _insert_words(conn, song_id, words)
     return song_id
 
 
-def update_song(song_id, title, image, words):
-    """Actualiza título y palabras; si image es None conserva la imagen actual."""
+def update_song(song_id, title, image, color, words):
+    """Update title, color and words; keep the current image when image is None."""
     with _connect() as conn:
         if image is not None:
             conn.execute(
-                "UPDATE songs SET title = ?, image = ? WHERE id = ?",
-                (title, image, song_id),
+                "UPDATE songs SET title = ?, image = ?, color = ? WHERE id = ?",
+                (title, image, color, song_id),
             )
         else:
-            conn.execute("UPDATE songs SET title = ? WHERE id = ?", (title, song_id))
+            conn.execute(
+                "UPDATE songs SET title = ?, color = ? WHERE id = ?",
+                (title, color, song_id),
+            )
         conn.execute("DELETE FROM words WHERE song_id = ?", (song_id,))
         _insert_words(conn, song_id, words)
 
@@ -101,7 +114,7 @@ def _insert_words(conn, song_id, words):
 
 
 def delete_song(song_id):
-    """Elimina la canción y devuelve el nombre de su imagen (si tenía)."""
+    """Delete the song and return its image filename (if it had one)."""
     with _connect() as conn:
         row = conn.execute("SELECT image FROM songs WHERE id = ?", (song_id,)).fetchone()
         conn.execute("DELETE FROM songs WHERE id = ?", (song_id,))
@@ -116,7 +129,7 @@ def set_selected(song_id, selected):
 
 
 def practice_songs(ids=None):
-    """Canciones con sus palabras: las indicadas por id, o las seleccionadas."""
+    """Songs with their words: the ones given by id, or the selected ones."""
     with _connect() as conn:
         if ids:
             marks = ",".join("?" * len(ids))
@@ -131,7 +144,7 @@ def practice_songs(ids=None):
     return [get_song(r["id"]) for r in rows]
 
 
-# ---------- Ajustes ----------
+# ---------- Settings ----------
 
 def get_setting(key, default):
     with _connect() as conn:

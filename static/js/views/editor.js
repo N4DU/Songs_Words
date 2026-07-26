@@ -1,4 +1,4 @@
-// Editor de canciones: título, imagen representativa y lista de palabras.
+// Song editor: title, cover image, theme color and word list.
 
 import * as api from '../api.js';
 import { navigate } from '../main.js';
@@ -7,6 +7,7 @@ import { el, hints } from '../ui.js';
 let editingId = null;
 
 let titleInput, imageInput, preview, wordsBox, errorBox, saveBtn, cancelBtn;
+let colorAuto, colorInput;
 
 export const editorView = {
   async mount(root, params) {
@@ -24,7 +25,7 @@ export const editorView = {
       navigate('songs');
       return;
     }
-    // Enter avanza al siguiente campo (y crea filas nuevas al final).
+    // Enter moves to the next field (and adds new rows at the end).
     if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type === 'text') {
       e.preventDefault();
       advanceFrom(e.target);
@@ -33,20 +34,20 @@ export const editorView = {
 };
 
 function render(root, song) {
-  root.appendChild(el('h1', '', song ? '✎ Editar canción' : '＋ Nueva canción'));
+  root.appendChild(el('h1', '', song ? '✎ Edit song' : '＋ New song'));
   root.appendChild(el('p', 'subtitle',
-    'Escribe las palabras en inglés y su significado dentro de la canción.'));
+    'Write the words in English and their meaning within the song.'));
 
   const card = el('div', 'card');
 
-  card.appendChild(el('label', '', 'Título de la canción'));
+  card.appendChild(el('label', '', 'Song title'));
   titleInput = el('input');
   titleInput.type = 'text';
-  titleInput.placeholder = 'Ej.: Yellow — Coldplay';
+  titleInput.placeholder = 'E.g.: Counting Stars — OneRepublic';
   titleInput.value = song ? song.title : '';
   card.appendChild(titleInput);
 
-  card.appendChild(el('label', '', 'Imagen representativa (opcional)'));
+  card.appendChild(el('label', '', 'Cover image (optional)'));
   imageInput = el('input');
   imageInput.type = 'file';
   imageInput.accept = 'image/*';
@@ -66,7 +67,25 @@ function render(root, song) {
   };
   card.appendChild(preview);
 
-  card.appendChild(el('label', '', 'Palabras'));
+  card.appendChild(el('label', '', 'Practice background color'));
+  const colorRow = el('div', 'color-row');
+  colorAuto = el('input');
+  colorAuto.type = 'checkbox';
+  colorAuto.id = 'color-auto';
+  colorAuto.checked = !(song && song.color);
+  const colorLabel = el('label', 'inline-label', 'Auto (taken from the cover)');
+  colorLabel.htmlFor = 'color-auto';
+  colorInput = el('input');
+  colorInput.type = 'color';
+  colorInput.value = (song && song.color) || '#00acc1';
+  colorInput.style.display = colorAuto.checked ? 'none' : 'block';
+  colorAuto.onchange = () => {
+    colorInput.style.display = colorAuto.checked ? 'none' : 'block';
+  };
+  colorRow.append(colorAuto, colorLabel, colorInput);
+  card.appendChild(colorRow);
+
+  card.appendChild(el('label', '', 'Words'));
   wordsBox = el('div');
   card.appendChild(wordsBox);
   const words = song && song.words.length ? song.words : [{ english: '', spanish: '' }];
@@ -77,18 +96,18 @@ function render(root, song) {
 
   const row = el('div', 'btn-row');
   row.style.marginTop = '20px';
-  saveBtn = el('button', 'btn primary', '✓ Guardar');
+  saveBtn = el('button', 'btn primary', '✓ Save');
   saveBtn.onclick = save;
-  cancelBtn = el('button', 'btn', '← Cancelar');
+  cancelBtn = el('button', 'btn', '← Cancel');
   cancelBtn.onclick = () => navigate('songs');
   row.append(saveBtn, cancelBtn);
   card.appendChild(row);
 
   root.appendChild(card);
   root.appendChild(hints([
-    ['Tab', 'siguiente campo'],
-    ['Enter', 'avanzar / nueva palabra'],
-    ['Esc', 'volver sin guardar'],
+    ['Tab', 'next field'],
+    ['Enter', 'advance / new word'],
+    ['Esc', 'back without saving'],
   ]));
 }
 
@@ -97,18 +116,18 @@ function addRow(english = '', spanish = '') {
 
   const en = el('input');
   en.type = 'text';
-  en.placeholder = 'Inglés';
+  en.placeholder = 'English';
   en.value = english;
   en.dataset.field = 'english';
 
   const es = el('input');
   es.type = 'text';
-  es.placeholder = 'Español (en el contexto de la canción)';
+  es.placeholder = 'Spanish (as used in the song)';
   es.value = spanish;
   es.dataset.field = 'spanish';
 
   const del = el('button', 'row-del', '✕');
-  del.title = 'Quitar esta palabra';
+  del.title = 'Remove this word';
   del.tabIndex = -1;
   del.onclick = () => {
     if (wordsBox.children.length > 1) row.remove();
@@ -120,8 +139,7 @@ function addRow(english = '', spanish = '') {
   return row;
 }
 
-// Enter en un campo de texto: pasa al siguiente; en la última casilla,
-// crea otra fila si hay contenido, o salta a «Guardar» si está vacía.
+// Enter in a text field: move on; on the last empty row, jump to "Save".
 function advanceFrom(input) {
   if (input === titleInput) {
     wordsBox.querySelector('input').focus();
@@ -162,13 +180,14 @@ async function save() {
   const words = collectWords();
   const incomplete = words.find((w) => !w.english || !w.spanish);
   if (incomplete) {
-    showError('Hay palabras incompletas: completa ambas columnas o quítalas.');
+    showError('Some words are incomplete: fill both columns or remove them.');
     return;
   }
 
   const form = new FormData();
   form.append('title', titleInput.value.trim());
   form.append('words', JSON.stringify(words));
+  if (!colorAuto.checked) form.append('color', colorInput.value);
   if (imageInput.files[0]) form.append('image', imageInput.files[0]);
 
   try {
