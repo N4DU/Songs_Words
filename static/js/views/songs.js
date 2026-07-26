@@ -170,12 +170,15 @@ function onListKey(e) {
   e.preventDefault();
 }
 
+// Toggles and re-sorts right away (selected first, newest added on top),
+// keeping the focus on the same song wherever it lands.
 async function toggleSelected() {
   const song = songs[listIdx];
   song.selected = song.selected ? 0 : 1;
-  listNodes[listIdx].classList.toggle('is-selected', !!song.selected);
-  listNodes[listIdx].querySelector('.song-check').textContent = song.selected ? '✓' : '';
   await api.setSelected(song.id, !!song.selected);
+  songs = await api.getSongs();
+  listIdx = Math.max(0, songs.findIndex((s) => s.id === song.id));
+  render(document.getElementById('app'));
 }
 
 // ---------- Zone: per-song actions menu ----------
