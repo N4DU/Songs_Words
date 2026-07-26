@@ -354,9 +354,8 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
 
 /* ---------- Practice ---------- */
 
-/* Three rows — header, card, empty mirror — so the CARD alone is what
-   sits at the exact optical center of the screen, with the header living
-   in the top row. Centering the whole group made it all feel low. */
+/* Three rows with the practice group (cover + progress bar + card, glued
+   together) sitting alone at the optical center of the screen. */
 .practice-wrap {
   min-height: calc(100vh - 122px); /* #app paddings: 32 top + 90 bottom */
   display: grid;
@@ -364,13 +363,13 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
   align-items: start;
 }
 
-.practice-wrap > .prompt-card, .practice-wrap > .summary { align-self: center; }
+.practice-wrap > .practice-group, .practice-wrap > .summary { align-self: center; }
 
 .practice-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .practice-cover {
@@ -397,7 +396,7 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.16);
   overflow: hidden;
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
 .progress-bar > div {
   height: 100%;
