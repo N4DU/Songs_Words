@@ -1,0 +1,3 @@
+Hola fableee cuanto tiempo?
+
+Hoy estamos aquí pero las cosas son diferentes. Ahora trabajas con creditos, así que el trabajo que podrás hacer ya no será como antes que estabas en e plan pro. Asi que por favor al momento de crear, preguntame a medida q tengas dudas sobre datos q me haya olvidado mencionar, también la estructura del proyecto debe ser inteligente, no puedes poner todo en un script. Además de desprolijo, para hacer un cambio tendrias que leer todo eso, entonces ve trabajando en multiples script de forma inteligente, como lo haría un proyecto serio. Ademas de esto, mi objetivo es 
