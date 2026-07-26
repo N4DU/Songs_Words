@@ -12,7 +12,8 @@ from app.config import ALLOWED_IMAGE_EXTENSIONS, IMAGES_DIR
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
-DIRECTIONS = {"es_to_en", "en_to_es"}
+DIRECTIONS = {"to_word", "to_translation"}
+LANGUAGES = {"en", "es", "fr", "de", "it", "pt", "ru", "ja", "zh", "ko"}
 HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
@@ -50,10 +51,10 @@ def _parse_song_form():
     except json.JSONDecodeError:
         raise ValueError("Invalid word list")
     words = [
-        {"english": w.get("english", "").strip(), "spanish": w.get("spanish", "").strip()}
+        {"word": w.get("word", "").strip(), "translation": w.get("translation", "").strip()}
         for w in raw
     ]
-    words = [w for w in words if w["english"] and w["spanish"]]
+    words = [w for w in words if w["word"] and w["translation"]]
     if not words:
         raise ValueError("Add at least one complete word")
     color = (request.form.get("color") or "").strip()
@@ -130,7 +131,8 @@ def practice():
 @api.get("/settings")
 def settings_get():
     return jsonify({
-        "direction": db.get_setting("direction", "es_to_en"),
+        "direction": db.get_setting("direction", "to_word"),
+        "language": db.get_setting("language", "en"),
         "retry_missed": db.get_setting("retry_missed", "1") == "1",
         "ignore_accents": db.get_setting("ignore_accents", "1") == "1",
     })
@@ -144,6 +146,10 @@ def settings_put():
         if data["direction"] not in DIRECTIONS:
             return _error("Invalid direction")
         db.set_setting("direction", data["direction"])
+    if "language" in data:
+        if data["language"] not in LANGUAGES:
+            return _error("Invalid language")
+        db.set_setting("language", data["language"])
     for key in ("retry_missed", "ignore_accents"):
         if key in data:
             db.set_setting(key, "1" if data[key] else "0")
