@@ -193,7 +193,9 @@ function openActions() {
   ];
   actionNodes = acts.map(([label, action]) => {
     const b = el('button', 'btn', label);
-    b.onclick = action;
+    // Without stopPropagation the click bubbles to the song row's own
+    // onclick, which toggles the selection and re-renders over the new view.
+    b.onclick = (e) => { e.stopPropagation(); action(); };
     actionsMenu.appendChild(b);
     return b;
   });
