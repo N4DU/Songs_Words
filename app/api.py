@@ -129,16 +129,24 @@ def practice():
 
 @api.get("/settings")
 def settings_get():
-    return jsonify({"direction": db.get_setting("direction", "es_to_en")})
+    return jsonify({
+        "direction": db.get_setting("direction", "es_to_en"),
+        "retry_missed": db.get_setting("retry_missed", "1") == "1",
+        "ignore_accents": db.get_setting("ignore_accents", "1") == "1",
+    })
 
 
 @api.put("/settings")
 def settings_put():
+    """Partial update: only the keys present in the body are changed."""
     data = request.get_json(silent=True) or {}
-    direction = data.get("direction")
-    if direction not in DIRECTIONS:
-        return _error("Invalid direction")
-    db.set_setting("direction", direction)
+    if "direction" in data:
+        if data["direction"] not in DIRECTIONS:
+            return _error("Invalid direction")
+        db.set_setting("direction", data["direction"])
+    for key in ("retry_missed", "ignore_accents"):
+        if key in data:
+            db.set_setting(key, "1" if data[key] else "0")
     return jsonify({"ok": True})
 
 
