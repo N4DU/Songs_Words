@@ -3,6 +3,7 @@
 import * as api from '../api.js';
 import { navigate } from '../main.js';
 import { el, hints, confirmDialog } from '../ui.js';
+import { t } from '../i18n.js';
 
 let editingId = null;
 
@@ -68,7 +69,7 @@ function attemptClose() {
   if (snapshot() === savedSnapshot) { navigate('songs'); return; }
   const refocus = document.activeElement;
   if (refocus && refocus.blur) refocus.blur();
-  dialog = confirmDialog('Leave without saving your changes?', (yes) => {
+  dialog = confirmDialog(t('leaveNoSave'), (yes) => {
     dialog = null;
     if (yes) navigate('songs');
     else if (refocus && refocus.focus) refocus.focus();
@@ -83,24 +84,23 @@ function maybeRemoveRow(e) {
   e.preventDefault();
   const neighbor = row.previousElementSibling || row.nextElementSibling;
   row.remove();
-  neighbor.querySelector('[data-field="english"]').focus();
+  neighbor.querySelector('[data-field="word"]').focus();
 }
 
 function render(root, song) {
-  root.appendChild(el('h1', '', song ? '✎ Edit song' : '＋ New song'));
-  root.appendChild(el('p', 'subtitle',
-    'Write the words in English and their meaning within the song.'));
+  root.appendChild(el('h1', '', song ? t('editTitle') : t('newTitle')));
+  root.appendChild(el('p', 'subtitle', t('editorSubtitle')));
 
   const card = el('div', 'card');
 
-  card.appendChild(el('label', '', 'Song title'));
+  card.appendChild(el('label', '', t('songTitle')));
   titleInput = el('input');
   titleInput.type = 'text';
-  titleInput.placeholder = 'E.g.: Counting Stars — OneRepublic';
+  titleInput.placeholder = t('titleExample');
   titleInput.value = song ? song.title : '';
   card.appendChild(titleInput);
 
-  card.appendChild(el('label', '', 'Cover image (optional)'));
+  card.appendChild(el('label', '', t('coverImage')));
   imageInput = el('input');
   imageInput.type = 'file';
   imageInput.accept = 'image/*';
@@ -120,13 +120,13 @@ function render(root, song) {
   };
   card.appendChild(preview);
 
-  card.appendChild(el('label', '', 'Practice background color'));
+  card.appendChild(el('label', '', t('bgColor')));
   const colorRow = el('div', 'color-row');
   colorAuto = el('input');
   colorAuto.type = 'checkbox';
   colorAuto.id = 'color-auto';
   colorAuto.checked = !(song && song.color);
-  const colorLabel = el('label', 'inline-label', 'Auto (taken from the cover)');
+  const colorLabel = el('label', 'inline-label', t('colorAuto'));
   colorLabel.htmlFor = 'color-auto';
   colorInput = el('input');
   colorInput.type = 'color';
@@ -138,57 +138,57 @@ function render(root, song) {
   colorRow.append(colorAuto, colorLabel, colorInput);
   card.appendChild(colorRow);
 
-  card.appendChild(el('label', '', 'Words'));
+  card.appendChild(el('label', '', t('wordsLabel')));
   wordsBox = el('div');
   card.appendChild(wordsBox);
-  const words = song && song.words.length ? song.words : [{ english: '', spanish: '' }];
-  words.forEach((w) => addRow(w.english, w.spanish));
+  const words = song && song.words.length ? song.words : [{ word: '', translation: '' }];
+  words.forEach((w) => addRow(w.word, w.translation));
 
   errorBox = el('div', 'form-error');
   card.appendChild(errorBox);
 
   const row = el('div', 'btn-row');
   row.style.marginTop = '20px';
-  saveBtn = el('button', 'btn primary', '✓ Save');
+  saveBtn = el('button', 'btn primary', t('save'));
   saveBtn.onclick = save;
-  cancelBtn = el('button', 'btn', '← Cancel');
+  cancelBtn = el('button', 'btn', t('cancel'));
   cancelBtn.onclick = attemptClose;
   row.append(saveBtn, cancelBtn);
   card.appendChild(row);
 
   root.appendChild(card);
   root.appendChild(hints([
-    ['Tab', 'next field'],
-    ['Enter', 'advance / new word'],
-    ['Backspace', 'empty row: remove it'],
-    ['Esc', 'back without saving'],
+    ['Tab', t('hintNextField')],
+    ['Enter', t('hintAdvance')],
+    ['Backspace', t('hintRemoveRow')],
+    ['Esc', t('hintBackNoSave')],
   ]));
 }
 
-function addRow(english = '', spanish = '') {
+function addRow(word = '', translation = '') {
   const row = el('div', 'word-row');
 
-  const en = el('input');
-  en.type = 'text';
-  en.placeholder = 'English';
-  en.value = english;
-  en.dataset.field = 'english';
+  const wordInput = el('input');
+  wordInput.type = 'text';
+  wordInput.placeholder = t('wordPh');
+  wordInput.value = word;
+  wordInput.dataset.field = 'word';
 
-  const es = el('input');
-  es.type = 'text';
-  es.placeholder = 'Spanish (as used in the song)';
-  es.value = spanish;
-  es.dataset.field = 'spanish';
+  const transInput = el('input');
+  transInput.type = 'text';
+  transInput.placeholder = t('translationPh');
+  transInput.value = translation;
+  transInput.dataset.field = 'translation';
 
   const del = el('button', 'row-del', '✕');
-  del.title = 'Remove this word';
+  del.title = t('removeWord');
   del.tabIndex = -1;
   del.onclick = () => {
     if (wordsBox.children.length > 1) row.remove();
-    else { en.value = ''; es.value = ''; }
+    else { wordInput.value = ''; transInput.value = ''; }
   };
 
-  row.append(en, es, del);
+  row.append(wordInput, transInput, del);
   wordsBox.appendChild(row);
   return row;
 }
@@ -202,19 +202,19 @@ function advanceFrom(input) {
   const row = input.closest('.word-row');
   if (!row) return;
 
-  if (input.dataset.field === 'english') {
-    const spanish = row.querySelector('[data-field="spanish"]');
+  if (input.dataset.field === 'word') {
+    const translation = row.querySelector('[data-field="translation"]');
     const lastAndEmpty = row === wordsBox.lastElementChild
-      && !input.value.trim() && !spanish.value.trim();
+      && !input.value.trim() && !translation.value.trim();
     if (lastAndEmpty) saveBtn.focus();
-    else spanish.focus();
+    else translation.focus();
     return;
   }
 
   const isLast = row === wordsBox.lastElementChild;
   if (isLast) {
-    const en = row.querySelector('[data-field="english"]').value.trim();
-    if (en || input.value.trim()) addRow().querySelector('input').focus();
+    const word = row.querySelector('[data-field="word"]').value.trim();
+    if (word || input.value.trim()) addRow().querySelector('input').focus();
     else saveBtn.focus();
   } else {
     row.nextElementSibling.querySelector('input').focus();
@@ -223,18 +223,22 @@ function advanceFrom(input) {
 
 function collectWords() {
   return [...wordsBox.querySelectorAll('.word-row')].map((row) => ({
-    english: row.querySelector('[data-field="english"]').value.trim(),
-    spanish: row.querySelector('[data-field="spanish"]').value.trim(),
-  })).filter((w) => w.english || w.spanish);
+    word: row.querySelector('[data-field="word"]').value.trim(),
+    translation: row.querySelector('[data-field="translation"]').value.trim(),
+  })).filter((w) => w.word || w.translation);
 }
 
 async function save() {
   errorBox.classList.remove('visible');
 
+  if (!titleInput.value.trim()) {
+    showError(t('errNoTitle'));
+    return;
+  }
   const words = collectWords();
-  const incomplete = words.find((w) => !w.english || !w.spanish);
+  const incomplete = words.find((w) => !w.word || !w.translation);
   if (incomplete) {
-    showError('Some words are incomplete: fill both columns or remove them.');
+    showError(t('errIncomplete'));
     return;
   }
 
