@@ -30,11 +30,12 @@ export function hints(pairs) {
   return bar;
 }
 
-// Highlights the keyboard-focused element and keeps it in view.
+// Highlights the keyboard-focused element and keeps it centered on screen,
+// so there is always context visible above and below the selection.
 export function applyFocus(nodes, index) {
   nodes.forEach((n, i) => n.classList.toggle('kfocus', i === index));
   const active = nodes[index];
-  if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (active) active.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
 // Modal confirmation dialog driven by ←/→, Enter and Escape.
