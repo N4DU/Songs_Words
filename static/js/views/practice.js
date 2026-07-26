@@ -5,13 +5,14 @@
 import * as api from '../api.js';
 import { navigate } from '../main.js';
 import { el, thumb, hints, applyFocus } from '../ui.js';
+import { t } from '../i18n.js';
 import { applySongTheme, clearTheme } from '../color.js';
 
-let queue = [];          // [{song, english, spanish, retry}]
+let queue = [];          // [{song, word, translation, retry}]
 let pos = 0;
 let total = 0;
 let firstTryHits = 0;
-let direction = 'es_to_en';
+let direction = 'to_word';
 let retryMissed = true;
 let ignoreAccents = true;
 
@@ -77,7 +78,7 @@ function current() { return queue[pos]; }
 
 function renderCurrent() {
   const item = current();
-  const asked = direction === 'es_to_en' ? item.spanish : item.english;
+  const asked = direction === 'to_word' ? item.translation : item.word;
 
   applySongTheme(item.song);
   root_.innerHTML = '';
@@ -102,7 +103,7 @@ function renderCurrent() {
 
   promptCard = el('div', 'card prompt-card');
   promptCard.appendChild(el('div', 'prompt-label',
-    direction === 'es_to_en' ? 'Write it in English' : 'Write it in Spanish'));
+    direction === 'to_word' ? t('writeWord') : t('writeTranslation')));
   promptCard.appendChild(el('div', 'prompt-word', asked));
 
   input = el('input', 'answer-input');
@@ -121,8 +122,8 @@ function renderCurrent() {
   root_.appendChild(wrap);
 
   root_.appendChild(hints([
-    ['Enter', 'check'],
-    ['Esc', 'end practice'],
+    ['Enter', t('hintCheck')],
+    ['Esc', t('hintEndPractice')],
   ]));
 
   updateProgress();
@@ -131,7 +132,7 @@ function renderCurrent() {
 
 function updateProgress() {
   const done = pos;
-  progressText.textContent = `Word ${Math.min(done + 1, total)} of ${total}`;
+  progressText.textContent = t('progress', { n: Math.min(done + 1, total), total });
   progressFill.style.width = `${(done / total) * 100}%`;
 }
 
@@ -144,20 +145,20 @@ function normalize(s) {
 function check() {
   if (input.disabled) return; // a result is already showing
   const item = current();
-  const expected = direction === 'es_to_en' ? item.english : item.spanish;
+  const expected = direction === 'to_word' ? item.word : item.translation;
 
   if (!normalize(input.value)) return;
 
   if (normalize(input.value) === normalize(expected)) {
     if (!item.retry) firstTryHits++;
     feedback.className = 'feedback ok';
-    feedback.textContent = '✓ Correct!';
+    feedback.textContent = t('correct');
     promptCard.classList.add('flash-ok');
     input.disabled = true;
     setTimeout(next, 600);
   } else {
     feedback.className = 'feedback bad';
-    feedback.textContent = `✗ It was: ${expected}`;
+    feedback.textContent = t('wrongWas', { answer: expected });
     promptCard.classList.add('flash-bad');
     input.disabled = true;
     if (retryMissed) {
@@ -183,20 +184,20 @@ function next() {
 
 function renderSummary() {
   finished = true;
-  const uniqueWords = new Set(queue.map((q) => q.english + '¦' + q.spanish)).size;
+  const uniqueWords = new Set(queue.map((q) => q.word + '¦' + q.translation)).size;
   const accuracy = uniqueWords ? Math.round((firstTryHits / uniqueWords) * 100) : 0;
 
   root_.innerHTML = '';
   const card = el('div', 'card summary');
   card.appendChild(el('div', 'big', accuracy === 100 ? '🏆' : accuracy >= 60 ? '🎉' : '💪'));
-  card.appendChild(el('h2', '', 'Practice complete!'));
+  card.appendChild(el('h2', '', t('complete')));
   card.appendChild(el('p', '',
-    `You got ${firstTryHits} of ${uniqueWords} words right on the first try (${accuracy}%).`));
+    t('result', { hits: firstTryHits, total: uniqueWords, pct: accuracy })));
 
   const row = el('div', 'btn-row');
-  const again = el('button', 'btn primary', '↻ Practice again');
+  const again = el('button', 'btn primary', t('again'));
   again.onclick = () => practiceView.mount(root_, lastParams);
-  const back = el('button', 'btn', '← Back to the list');
+  const back = el('button', 'btn', t('backToList'));
   back.onclick = () => navigate('songs');
   row.append(again, back);
   card.appendChild(row);
@@ -207,9 +208,9 @@ function renderSummary() {
   root_.appendChild(wrap);
 
   root_.appendChild(hints([
-    ['← →', 'choose'],
-    ['Enter', 'confirm'],
-    ['Esc', 'back'],
+    ['← →', t('hintChoose')],
+    ['Enter', t('hintConfirm')],
+    ['Esc', t('hintBack')],
   ]));
 
   summaryButtons = [again, back];

@@ -1,6 +1,7 @@
 // Entry point: view router, global keyboard handling and server lifecycle.
 
 import * as api from './api.js';
+import { setLang, t } from './i18n.js';
 import { songsView } from './views/songs.js';
 import { editorView } from './views/editor.js';
 import { practiceView } from './views/practice.js';
@@ -28,12 +29,14 @@ export function navigate(name, params = {}) {
 export async function quitApp() {
   if (current && current.unmount) current.unmount();
   current = null;
-  document.getElementById('app').innerHTML = `
-    <div class="goodbye">
-      <div class="big">👋</div>
-      <h2>See you soon!</h2>
-      <p>The server has stopped. You can close this tab now.</p>
-    </div>`;
+  const goodbye = document.createElement('div');
+  goodbye.className = 'goodbye';
+  goodbye.innerHTML = '<div class="big">👋</div><h2></h2><p></p>';
+  goodbye.querySelector('h2').textContent = t('goodbyeTitle');
+  goodbye.querySelector('p').textContent = t('goodbyeBody');
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  app.appendChild(goodbye);
   await api.shutdown();
   setTimeout(() => window.close(), 300);
 }
@@ -48,4 +51,7 @@ document.addEventListener('keydown', (e) => {
 api.hello();
 window.addEventListener('pagehide', () => navigator.sendBeacon('/api/goodbye'));
 
-navigate('songs');
+// The interface language lives in settings: load it before the first view.
+api.getSettings()
+  .then((s) => setLang(s.language))
+  .finally(() => navigate('songs'));

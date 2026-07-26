@@ -5,6 +5,7 @@
 import * as api from '../api.js';
 import { navigate, quitApp } from '../main.js';
 import { el, thumb, hints, applyFocus, confirmDialog, toast } from '../ui.js';
+import { t } from '../i18n.js';
 import { applyAmbientFromSongs } from '../color.js';
 
 let songs = [];
@@ -45,14 +46,14 @@ export const songsView = {
 function render(root) {
   root.innerHTML = '';
   root.appendChild(el('h1', '', '🎵 Songs & Words'));
-  root.appendChild(el('p', 'subtitle', 'Your English vocabulary, song by song.'));
+  root.appendChild(el('p', 'subtitle', t('subtitle')));
 
   const row = el('div', 'btn-row top-actions');
   buttonNodes = [
-    button(row, '▶ Practice selected', 'primary', startSelected),
-    button(row, '＋ New song', '', () => navigate('editor')),
-    button(row, '⚙ Settings', '', () => navigate('settings')),
-    button(row, '✕ Exit', 'danger', quitApp),
+    button(row, t('practiceSelected'), 'primary', startSelected),
+    button(row, t('newSong'), '', () => navigate('editor')),
+    button(row, t('settings'), '', () => navigate('settings')),
+    button(row, t('exit'), 'danger', quitApp),
   ];
   root.appendChild(row);
 
@@ -65,7 +66,7 @@ function render(root) {
       const info = el('div', 'song-info');
       info.appendChild(el('div', 'song-title', song.title));
       info.appendChild(el('div', 'song-meta',
-        `${song.word_count} word${song.word_count === 1 ? '' : 's'}`));
+        song.word_count === 1 ? t('wordCountOne') : t('wordCount', { n: song.word_count })));
       item.appendChild(info);
       item.appendChild(el('div', 'song-check', song.selected ? '✓' : ''));
       item.onclick = () => { listIdx = i; setZone('list'); toggleSelected(); };
@@ -76,16 +77,16 @@ function render(root) {
   } else {
     const empty = el('div', 'empty-state');
     empty.appendChild(el('div', 'big', '🎧'));
-    empty.appendChild(el('p', '', 'No songs yet. Create your first one!'));
+    empty.appendChild(el('p', '', t('noSongs')));
     root.appendChild(empty);
   }
 
   root.appendChild(hints([
-    ['↑ ↓', 'navigate'],
-    ['Space', 'select'],
-    ['→', 'song actions'],
-    ['Enter', 'confirm'],
-    ['Esc', 'exit'],
+    ['↑ ↓', t('hintNavigate')],
+    ['Space', t('hintSelect')],
+    ['→', t('hintSongActions')],
+    ['Enter', t('hintConfirm')],
+    ['Esc', t('hintExit')],
   ]));
 
   refreshFocus();
@@ -138,8 +139,8 @@ function onButtonsKey(e) {
 
 function startSelected() {
   if (songs.some((s) => s.selected)) navigate('practice', {});
-  else if (songs.length) toast('Select at least one song first — press Space on it.');
-  else toast('Create a song first to start practicing.');
+  else if (songs.length) toast(t('toastSelectFirst'));
+  else toast(t('toastCreateFirst'));
 }
 
 // ---------- Zone: list ----------
@@ -187,9 +188,9 @@ function openActions() {
   const item = listNodes[listIdx];
   actionsMenu = el('div', 'song-actions');
   const acts = [
-    ['▶ Practice', () => navigate('practice', { ids: [songs[listIdx].id] })],
-    ['✎ Edit', () => navigate('editor', { id: songs[listIdx].id })],
-    ['🗑 Delete', removeSong],
+    [t('actPractice'), () => navigate('practice', { ids: [songs[listIdx].id] })],
+    [t('actEdit'), () => navigate('editor', { id: songs[listIdx].id })],
+    [t('actDelete'), removeSong],
   ];
   actionNodes = acts.map(([label, action]) => {
     const b = el('button', 'btn', label);
@@ -234,7 +235,7 @@ function onActionsKey(e) {
 
 function removeSong() {
   const song = songs[listIdx];
-  dialog = confirmDialog(`Delete “${song.title}” and all its words?`, async (yes) => {
+  dialog = confirmDialog(t('confirmDelete', { title: song.title }), async (yes) => {
     dialog = null;
     closeActions();
     if (yes) {
