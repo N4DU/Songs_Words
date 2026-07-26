@@ -252,7 +252,7 @@ h1 {
 .btn.primary { background: var(--theme-accent); border-color: transparent; color: #06272e; }
 .btn.danger { color: var(--bad); }
 
-.btn.kfocus, .btn:hover { border-color: rgba(255, 255, 255, 0.85); }
+.btn.kfocus, .btn:hover, .btn:focus-visible { border-color: rgba(255, 255, 255, 0.85); outline: none; }
 .btn.danger.kfocus, .btn.danger:hover { border-color: var(--bad); }
 
 /* ---------- Keyboard hint bar ---------- */
@@ -468,6 +468,28 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
 .option-item.kfocus { border-color: var(--theme-accent); background: var(--glass-strong); }
 .option-item .mark { width: 24px; color: var(--theme-accent); font-weight: 700; font-size: 1.1rem; }
 .option-item .desc { color: var(--ink-soft); font-size: .85rem; margin-top: 2px; }
+
+/* ---------- Toast: transient keyboard feedback ---------- */
+
+.toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: rgba(16, 22, 28, 0.92);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: .9rem;
+  color: var(--ink);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s, transform .25s;
+  z-index: 60;
+}
+
+.toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ---------- Confirmation dialog ---------- */
 

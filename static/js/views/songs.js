@@ -4,7 +4,7 @@
 
 import * as api from '../api.js';
 import { navigate, quitApp } from '../main.js';
-import { el, thumb, hints, applyFocus, confirmDialog } from '../ui.js';
+import { el, thumb, hints, applyFocus, confirmDialog, toast } from '../ui.js';
 import { applyAmbientFromSongs } from '../color.js';
 
 let songs = [];
@@ -138,6 +138,8 @@ function onButtonsKey(e) {
 
 function startSelected() {
   if (songs.some((s) => s.selected)) navigate('practice', {});
+  else if (songs.length) toast('Select at least one song first — press Space on it.');
+  else toast('Create a song first to start practicing.');
 }
 
 // ---------- Zone: list ----------
