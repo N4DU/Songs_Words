@@ -12,6 +12,12 @@
   --shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
   --radius: 16px;
 
+  /* ── Practice card height ─────────────────────────────────────────────
+     Vertical position of the practice card (and the final summary card).
+     0px = exact center of the screen; negative values lift it, positive
+     values lower it. Tweak this single number to taste. */
+  --practice-lift: -20px;
+
   /* Ambient palette: retinted at runtime from the covers of your songs
      (home) or from the current song (practice). */
   --theme-a: #122b33;
@@ -354,17 +360,30 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
 
 /* ---------- Practice ---------- */
 
-/* Three rows with the practice group (cover + progress bar + card, glued
-   together) at the optical center — the slightly smaller top row lifts the
-   group a touch above the mathematical middle, which reads better. */
+/* The CARD is the centered element (shifted by --practice-lift); the cover
+   and the progress bar hang glued right above it without affecting the
+   centering math, so practice and summary cards land at the same height. */
 .practice-wrap {
   min-height: calc(100vh - 122px); /* #app paddings: 32 top + 90 bottom */
   display: grid;
-  grid-template-rows: 0.93fr auto 1.07fr;
+  grid-template-rows: 1fr auto 1fr;
   align-items: start;
 }
 
-.practice-wrap > .practice-group, .practice-wrap > .summary { align-self: center; }
+.practice-wrap > .practice-group, .practice-wrap > .summary {
+  align-self: center;
+  transform: translateY(var(--practice-lift));
+}
+
+.practice-group { position: relative; }
+
+/* Cover + progress bar: anchored just above the card, out of flow. */
+.practice-top {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 0;
+  right: 0;
+}
 
 .practice-header {
   display: flex;
@@ -397,7 +416,6 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.16);
   overflow: hidden;
-  margin-bottom: 14px;
 }
 .progress-bar > div {
   height: 100%;
@@ -538,6 +556,25 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
 
 .dialog p { margin-bottom: 20px; }
 .dialog .btn-row { justify-content: center; }
+
+/* Language picker: compact list opened from the settings' language row. */
+.lang-picker { min-width: 260px; padding: 22px; }
+.lang-picker p {
+  margin-bottom: 12px;
+  font-size: .8rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.lang-list { max-height: 56vh; overflow-y: auto; }
+.lang-item {
+  padding: 9px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.lang-item:hover { background: var(--glass); }
+.lang-item.kfocus { background: var(--glass-strong); color: #fff; }
 
 /* ---------- Goodbye screen ---------- */
 

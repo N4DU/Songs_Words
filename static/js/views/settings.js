@@ -1,21 +1,24 @@
 // Settings, grouped by category: interface language, practice direction,
 // what happens with mistakes, and how answers are compared.
-// All rows share one ↑↓ flow.
+// All rows share one ↑↓ flow; the language row opens a compact picker so
+// ten languages don't clutter the list.
 
 import * as api from '../api.js';
 import { navigate } from '../main.js';
 import { el, hints, applyFocus } from '../ui.js';
-import { LANGS, setLang, t } from '../i18n.js';
+import { LANGS, getLang, setLang, t } from '../i18n.js';
 
 // Built on every render so all labels follow the current language.
-// type 'radio' rows set `key` to `value`; type 'toggle' rows flip `key`.
+// type 'radio' rows set `key` to `value`; type 'toggle' rows flip `key`;
+// the single type 'lang' row opens the language picker.
 function buildSections() {
+  const current = LANGS.find(([code]) => code === getLang());
   return [
     {
       title: t('catLanguage'),
-      rows: LANGS.map(([code, name]) => ({
-        type: 'radio', key: 'language', value: code, label: name,
-      })),
+      rows: [
+        { type: 'lang', label: current ? current[1] : 'English', desc: t('langDesc') },
+      ],
     },
     {
       title: t('catDirection'),
@@ -56,18 +59,23 @@ let idx = 0;
 let settings = {};
 let nodes = [];
 let root_ = null;
+let picker = null;   // active language picker: { onKey }
 
 export const settingsView = {
   async mount(root) {
     root_ = root;
     settings = await api.getSettings();
     idx = 0;
+    picker = null;
     render();
   },
 
-  unmount() {},
+  unmount() {
+    closePicker();
+  },
 
   onKey(e) {
+    if (picker) { picker.onKey(e); return; }
     switch (e.key) {
       case 'ArrowDown':
         if (idx < rows.length - 1) { idx++; applyFocus(nodes, idx); }
@@ -124,25 +132,76 @@ function render() {
 }
 
 function markFor(row) {
+  if (row.type === 'lang') return '▾';
   if (row.type === 'radio') return settings[row.key] === row.value ? '✓' : '';
   return settings[row.key] ? 'ON' : 'OFF';
 }
 
 async function activate(i) {
   const row = rows[i];
+  if (row.type === 'lang') { openPicker(); return; }
+
   if (row.type === 'radio') settings[row.key] = row.value;
   else settings[row.key] = !settings[row.key];
-
-  if (row.key === 'language') {
-    // The whole view re-renders so every label speaks the new language.
-    setLang(row.value);
-    render();
-  } else {
-    nodes.forEach((n, j) => {
-      const mark = n.querySelector('.mark');
-      mark.textContent = markFor(rows[j]);
-      mark.classList.toggle('off', rows[j].type === 'toggle' && !settings[rows[j].key]);
-    });
-  }
+  nodes.forEach((n, j) => {
+    const mark = n.querySelector('.mark');
+    mark.textContent = markFor(rows[j]);
+    mark.classList.toggle('off', rows[j].type === 'toggle' && !settings[rows[j].key]);
+  });
   await api.saveSettings({ [row.key]: settings[row.key] });
+}
+
+// ---------- Language picker ----------
+
+function openPicker() {
+  const overlay = el('div', 'overlay');
+  const box = el('div', 'dialog lang-picker');
+  box.appendChild(el('p', '', t('catLanguage')));
+  const list = el('div', 'lang-list');
+
+  let pickIdx = Math.max(0, LANGS.findIndex(([code]) => code === getLang()));
+  const items = LANGS.map(([code, name], j) => {
+    const item = el('div', 'lang-item', name + (code === getLang() ? '  ✓' : ''));
+    item.onclick = () => { pickIdx = j; choose(); };
+    list.appendChild(item);
+    return item;
+  });
+  box.appendChild(list);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  applyFocus(items, pickIdx);
+
+  async function choose() {
+    const code = LANGS[pickIdx][0];
+    closePicker();
+    if (code !== getLang()) {
+      setLang(code);
+      settings.language = code;
+      render();  // the whole view re-renders in the new language
+      await api.saveSettings({ language: code });
+    }
+  }
+
+  picker = {
+    overlay,
+    onKey(e) {
+      if (e.key === 'ArrowDown') {
+        if (pickIdx < items.length - 1) applyFocus(items, ++pickIdx);
+      } else if (e.key === 'ArrowUp') {
+        if (pickIdx > 0) applyFocus(items, --pickIdx);
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        choose();
+      } else if (e.key === 'Escape') {
+        closePicker();
+      } else {
+        return;
+      }
+      e.preventDefault();
+    },
+  };
+}
+
+function closePicker() {
+  if (picker) picker.overlay.remove();
+  picker = null;
 }
