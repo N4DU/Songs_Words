@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS songs (
 CREATE TABLE IF NOT EXISTS words (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
-    english TEXT NOT NULL,
-    spanish TEXT NOT NULL,
+    word TEXT NOT NULL,
+    translation TEXT NOT NULL,
     position INTEGER NOT NULL DEFAULT 0
 );
 
@@ -42,6 +42,15 @@ def _migrate(conn):
     columns = [row[1] for row in conn.execute("PRAGMA table_info(songs)")]
     if "color" not in columns:
         conn.execute("ALTER TABLE songs ADD COLUMN color TEXT")
+    # The app used to be English/Spanish only; now any language pair works.
+    word_columns = [row[1] for row in conn.execute("PRAGMA table_info(words)")]
+    if "english" in word_columns:
+        conn.execute("ALTER TABLE words RENAME COLUMN english TO word")
+        conn.execute("ALTER TABLE words RENAME COLUMN spanish TO translation")
+    row = conn.execute("SELECT value FROM settings WHERE key = 'direction'").fetchone()
+    if row and row[0] in ("es_to_en", "en_to_es"):
+        new = "to_word" if row[0] == "es_to_en" else "to_translation"
+        conn.execute("UPDATE settings SET value = ? WHERE key = 'direction'", (new,))
 
 
 def _connect():
@@ -71,7 +80,7 @@ def get_song(song_id):
         if song is None:
             return None
         words = conn.execute(
-            "SELECT id, english, spanish FROM words WHERE song_id = ? ORDER BY position, id",
+            "SELECT id, word, translation FROM words WHERE song_id = ? ORDER BY position, id",
             (song_id,),
         ).fetchall()
     result = dict(song)
@@ -109,8 +118,8 @@ def update_song(song_id, title, image, color, words):
 
 def _insert_words(conn, song_id, words):
     conn.executemany(
-        "INSERT INTO words (song_id, english, spanish, position) VALUES (?, ?, ?, ?)",
-        [(song_id, w["english"], w["spanish"], i) for i, w in enumerate(words)],
+        "INSERT INTO words (song_id, word, translation, position) VALUES (?, ?, ?, ?)",
+        [(song_id, w["word"], w["translation"], i) for i, w in enumerate(words)],
     )
 
 
