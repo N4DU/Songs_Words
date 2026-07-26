@@ -1,16 +1,18 @@
-// Vista de práctica: muestra la palabra en un idioma y se responde en el otro.
-// Las falladas se reencolan al final de su canción hasta acertarlas.
+// Practice view: shows the word in one language, you answer in the other.
+// Missed words are re-queued at the end of their song until you get them.
+// The whole screen takes on a theme based on the song's cover art.
 
 import * as api from '../api.js';
 import { navigate } from '../main.js';
 import { el, thumb, hints, applyFocus } from '../ui.js';
+import { applySongTheme, clearTheme } from '../color.js';
 
 let queue = [];          // [{song, english, spanish, retry}]
 let pos = 0;
 let total = 0;
 let firstTryHits = 0;
 let direction = 'es_to_en';
-let awaitingNext = false; // tras un fallo, Enter continúa
+let awaitingNext = false; // after a miss, Enter continues
 
 let lastParams = {};
 let root_, input, feedback, promptCard, progressFill, progressText;
@@ -43,7 +45,9 @@ export const practiceView = {
     renderCurrent();
   },
 
-  unmount() {},
+  unmount() {
+    clearTheme();
+  },
 
   onKey(e) {
     if (e.key === 'Escape') {
@@ -74,6 +78,7 @@ function renderCurrent() {
   const item = current();
   const asked = direction === 'es_to_en' ? item.spanish : item.english;
 
+  applySongTheme(item.song);
   root_.innerHTML = '';
 
   const header = el('div', 'practice-header');
@@ -92,7 +97,7 @@ function renderCurrent() {
 
   promptCard = el('div', 'card prompt-card');
   promptCard.appendChild(el('div', 'prompt-label',
-    direction === 'es_to_en' ? 'Escribe en inglés' : 'Escribe en español'));
+    direction === 'es_to_en' ? 'Write it in English' : 'Write it in Spanish'));
   promptCard.appendChild(el('div', 'prompt-word', asked));
 
   input = el('input', 'answer-input');
@@ -106,8 +111,8 @@ function renderCurrent() {
   root_.appendChild(promptCard);
 
   root_.appendChild(hints([
-    ['Enter', 'comprobar / continuar'],
-    ['Esc', 'terminar práctica'],
+    ['Enter', 'check / continue'],
+    ['Esc', 'end practice'],
   ]));
 
   updateProgress();
@@ -116,7 +121,7 @@ function renderCurrent() {
 
 function updateProgress() {
   const done = pos;
-  progressText.textContent = `Palabra ${Math.min(done + 1, total)} de ${total}`;
+  progressText.textContent = `Word ${Math.min(done + 1, total)} of ${total}`;
   progressFill.style.width = `${(done / total) * 100}%`;
 }
 
@@ -133,17 +138,17 @@ function check() {
   if (normalize(input.value) === normalize(expected)) {
     if (!item.retry) firstTryHits++;
     feedback.className = 'feedback ok';
-    feedback.textContent = '✓ ¡Correcto!';
+    feedback.textContent = '✓ Correct!';
     promptCard.classList.add('flash-ok');
     input.disabled = true;
     setTimeout(next, 600);
   } else {
     feedback.className = 'feedback bad';
-    feedback.textContent = `✗ Era: ${expected}`;
+    feedback.textContent = `✗ It was: ${expected}`;
     promptCard.classList.add('flash-bad');
     input.disabled = true;
     awaitingNext = true;
-    // Reencolar al final de la misma canción para reintentarla.
+    // Re-queue at the end of the same song to retry it.
     const song = item.song;
     let insertAt = queue.length;
     for (let i = pos + 1; i < queue.length; i++) {
@@ -168,23 +173,23 @@ function renderSummary() {
   root_.innerHTML = '';
   const card = el('div', 'card summary');
   card.appendChild(el('div', 'big', accuracy === 100 ? '🏆' : accuracy >= 60 ? '🎉' : '💪'));
-  card.appendChild(el('h2', '', '¡Práctica terminada!'));
+  card.appendChild(el('h2', '', 'Practice complete!'));
   card.appendChild(el('p', '',
-    `Acertaste a la primera ${firstTryHits} de ${uniqueWords} palabras (${accuracy}%).`));
+    `You got ${firstTryHits} of ${uniqueWords} words right on the first try (${accuracy}%).`));
 
   const row = el('div', 'btn-row');
-  const again = el('button', 'btn primary', '↻ Repetir');
+  const again = el('button', 'btn primary', '↻ Practice again');
   again.onclick = () => practiceView.mount(root_, lastParams);
-  const back = el('button', 'btn', '← Volver a la lista');
+  const back = el('button', 'btn', '← Back to the list');
   back.onclick = () => navigate('songs');
   row.append(again, back);
   card.appendChild(row);
   root_.appendChild(card);
 
   root_.appendChild(hints([
-    ['← →', 'elegir'],
-    ['Enter', 'aceptar'],
-    ['Esc', 'volver'],
+    ['← →', 'choose'],
+    ['Enter', 'confirm'],
+    ['Esc', 'back'],
   ]));
 
   summaryButtons = [again, back];
