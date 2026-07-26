@@ -20,6 +20,7 @@ let themedSongId = null; // avoids re-theming on every word of the same song
 export async function applySongTheme(song) {
   if (song.id === themedSongId) return;
   themedSongId = song.id;
+  scatterBlobs();
 
   if (!song.color) {
     const pal = await songPalette(song);
@@ -33,26 +34,91 @@ export async function applySongTheme(song) {
   setThemeVars(song.color || null);
 }
 
-// Home: tint the aurora blobs with up to three covers, selected songs first.
+// Home: a different scene on every visit. The tones come from your covers
+// (selected songs first, a random pick of each palette); without covers a
+// random hue family is used. Everything stays dark, saturated and serious —
+// never washed out, never garish.
 export async function applyAmbientFromSongs(songs) {
-  const pool = [...songs].sort((a, b) => (b.selected || 0) - (a.selected || 0));
-  const colors = [];
+  scatterBlobs();
+  hideBackdrop();
+  themedSongId = null;
+
+  const pool = shuffleArr([...songs]).sort((a, b) => (b.selected || 0) - (a.selected || 0));
+  const found = [];
   for (const song of pool) {
-    if (colors.length >= 3) break;
-    if (song.color) { colors.push(song.color); continue; }
+    if (found.length >= 3) break;
+    if (song.color) { found.push(song.color); continue; }
     const pal = await songPalette(song);
-    if (pal && pal.colors.length) colors.push(pal.colors[0]);
+    if (pal && pal.colors.length) {
+      found.push(pal.colors[Math.floor(Math.random() * pal.colors.length)]);
+    }
   }
+
+  let hues = found.map((hex) => {
+    const [h, s] = rgbToHsl(...hexToRgb(hex));
+    return [h, clampSat(s)];
+  });
+  if (!hues.length) {
+    const h = Math.random(); // analogous trio around a random base hue
+    hues = [[h, 0.55], [(h + 0.08) % 1, 0.5], [(h + 0.92) % 1, 0.5]];
+  }
+  while (hues.length < 3) {
+    const [h, s] = hues[hues.length - 1];
+    hues.push([(h + rand(0.05, 0.1)) % 1, s]);
+  }
+  hues = shuffleArr(hues);
+
   const style = document.body.style;
   ['--amb-1', '--amb-2', '--amb-3'].forEach((prop, i) => {
-    if (colors.length) {
-      const [h, s] = rgbToHsl(...hexToRgb(colors[i % colors.length]));
-      style.setProperty(prop, hslCss(h, clampSat(s), 0.38));
-    } else {
-      style.removeProperty(prop);
-    }
+    const [h, s] = hues[i];
+    style.setProperty(prop, hslCss(jitter(h, 0.03), s, rand(0.30, 0.42)));
   });
-  hideBackdrop();
+  const [h0, s0] = hues[0];
+  style.setProperty('--theme-a', hslCss(h0, s0, rand(0.13, 0.20)));
+  style.setProperty('--theme-b', hslCss(jitter(h0, 0.04), s0 * 0.8, 0.07));
+  style.setProperty('--theme-accent', hslCss(h0, Math.max(s0, 0.5), 0.62));
+}
+
+// Rearranges the aurora blobs: fresh corners, sizes and rhythm, so the
+// composition never repeats between visits.
+function scatterBlobs() {
+  const zones = [
+    { top: [-24, -10], left: [-18, -4] },
+    { top: [-20, -6], left: [52, 74] },
+    { top: [52, 72], left: [-14, 4] },
+    { top: [48, 68], left: [52, 76] },
+    { top: [16, 38], left: [24, 52] },
+  ];
+  const picks = shuffleArr([...zones]).slice(0, 3);
+  document.querySelectorAll('.aurora .blob').forEach((blob, i) => {
+    const z = picks[i];
+    const size = rand(36, 58);
+    blob.style.top = `${rand(...z.top)}vmax`;
+    blob.style.left = `${rand(...z.left)}vmax`;
+    blob.style.bottom = 'auto';
+    blob.style.right = 'auto';
+    blob.style.width = `${size}vmax`;
+    blob.style.height = `${size}vmax`;
+    blob.style.opacity = rand(0.28, 0.46).toFixed(2);
+    blob.style.animationDuration = `${rand(22, 40).toFixed(1)}s`;
+    blob.style.animationDelay = `-${rand(0, 20).toFixed(1)}s`;
+  });
+}
+
+function rand(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function jitter(h, amount) {
+  return (h + rand(-amount, amount) + 1) % 1;
+}
+
+function shuffleArr(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 export function clearTheme() {
