@@ -354,14 +354,17 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
 
 /* ---------- Practice ---------- */
 
-/* Fills the viewport height so the exercise sits vertically centered —
-   comfortable even in fullscreen, instead of hugging the top edge. */
+/* Three rows — header, card, empty mirror — so the CARD alone is what
+   sits at the exact optical center of the screen, with the header living
+   in the top row. Centering the whole group made it all feel low. */
 .practice-wrap {
   min-height: calc(100vh - 122px); /* #app paddings: 32 top + 90 bottom */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  align-items: start;
 }
+
+.practice-wrap > .prompt-card, .practice-wrap > .summary { align-self: center; }
 
 .practice-header {
   display: flex;
@@ -466,8 +469,26 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
 }
 
 .option-item.kfocus { border-color: var(--theme-accent); background: var(--glass-strong); }
-.option-item .mark { width: 24px; color: var(--theme-accent); font-weight: 700; font-size: 1.1rem; }
+.option-item .mark {
+  min-width: 34px;
+  color: var(--theme-accent);
+  font-weight: 700;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.option-item .mark.off { color: var(--ink-soft); }
 .option-item .desc { color: var(--ink-soft); font-size: .85rem; margin-top: 2px; }
+
+/* Category headers inside settings */
+.set-cat {
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin: 26px 0 10px 4px;
+}
+.set-cat:first-of-type { margin-top: 6px; }
 
 /* ---------- Toast: transient keyboard feedback ---------- */
 

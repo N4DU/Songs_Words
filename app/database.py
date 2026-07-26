@@ -59,7 +59,8 @@ def list_songs():
             """SELECT s.id, s.title, s.image, s.color, s.selected, s.created_at,
                       COUNT(w.id) AS word_count
                FROM songs s LEFT JOIN words w ON w.song_id = s.id
-               GROUP BY s.id ORDER BY s.created_at DESC, s.id DESC"""
+               GROUP BY s.id
+               ORDER BY s.selected DESC, s.created_at DESC, s.id DESC"""
         ).fetchall()
     return [dict(r) for r in rows]
 

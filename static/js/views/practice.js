@@ -12,7 +12,8 @@ let pos = 0;
 let total = 0;
 let firstTryHits = 0;
 let direction = 'es_to_en';
-let awaitingNext = false; // after a miss, Enter continues
+let retryMissed = true;
+let ignoreAccents = true;
 
 let lastParams = {};
 let root_, input, feedback, promptCard, progressFill, progressText;
@@ -29,6 +30,8 @@ export const practiceView = {
       api.getPractice(params.ids),
     ]);
     direction = settings.direction;
+    retryMissed = settings.retry_missed;
+    ignoreAccents = settings.ignore_accents;
 
     queue = [];
     for (const song of songs) {
@@ -38,7 +41,6 @@ export const practiceView = {
     pos = 0;
     total = queue.length;
     firstTryHits = 0;
-    awaitingNext = false;
     finished = false;
 
     if (!queue.length) { navigate('songs'); return; }
@@ -58,8 +60,7 @@ export const practiceView = {
     if (finished) return onSummaryKey(e);
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (awaitingNext) { awaitingNext = false; next(); }
-      else check();
+      check();
     }
   },
 };
@@ -81,6 +82,7 @@ function renderCurrent() {
   applySongTheme(item.song);
   root_.innerHTML = '';
   const wrap = el('div', 'practice-wrap');
+  const top = el('div');
 
   const header = el('div', 'practice-header');
   header.appendChild(thumb(item.song, 'practice-cover'));
@@ -89,12 +91,13 @@ function renderCurrent() {
   progressText = el('div', 'practice-progress');
   info.appendChild(progressText);
   header.appendChild(info);
-  wrap.appendChild(header);
+  top.appendChild(header);
 
   const bar = el('div', 'progress-bar');
   progressFill = el('div');
   bar.appendChild(progressFill);
-  wrap.appendChild(bar);
+  top.appendChild(bar);
+  wrap.appendChild(top);
 
   promptCard = el('div', 'card prompt-card');
   promptCard.appendChild(el('div', 'prompt-label',
@@ -110,10 +113,11 @@ function renderCurrent() {
   feedback = el('div', 'feedback');
   promptCard.appendChild(feedback);
   wrap.appendChild(promptCard);
+  wrap.appendChild(el('div')); // bottom spacer: mirrors the header row
   root_.appendChild(wrap);
 
   root_.appendChild(hints([
-    ['Enter', 'check / continue'],
+    ['Enter', 'check'],
     ['Esc', 'end practice'],
   ]));
 
@@ -128,10 +132,13 @@ function updateProgress() {
 }
 
 function normalize(s) {
-  return s.trim().toLowerCase();
+  s = s.trim().toLowerCase();
+  if (ignoreAccents) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return s;
 }
 
 function check() {
+  if (input.disabled) return; // a result is already showing
   const item = current();
   const expected = direction === 'es_to_en' ? item.english : item.spanish;
 
@@ -149,15 +156,18 @@ function check() {
     feedback.textContent = `✗ It was: ${expected}`;
     promptCard.classList.add('flash-bad');
     input.disabled = true;
-    awaitingNext = true;
-    // Re-queue at the end of the same song to retry it.
-    const song = item.song;
-    let insertAt = queue.length;
-    for (let i = pos + 1; i < queue.length; i++) {
-      if (queue[i].song !== song) { insertAt = i; break; }
+    if (retryMissed) {
+      // Re-queue at the end of the same song to retry it.
+      const song = item.song;
+      let insertAt = queue.length;
+      for (let i = pos + 1; i < queue.length; i++) {
+        if (queue[i].song !== song) { insertAt = i; break; }
+      }
+      queue.splice(insertAt, 0, { ...item, retry: true });
+      total++;
     }
-    queue.splice(insertAt, 0, { ...item, retry: true });
-    total++;
+    // No extra Enter: a pause long enough to read the answer, then on.
+    setTimeout(next, 1800);
   }
 }
 
@@ -187,7 +197,9 @@ function renderSummary() {
   row.append(again, back);
   card.appendChild(row);
   const wrap = el('div', 'practice-wrap');
+  wrap.appendChild(el('div'));
   wrap.appendChild(card);
+  wrap.appendChild(el('div'));
   root_.appendChild(wrap);
 
   root_.appendChild(hints([
