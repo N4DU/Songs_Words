@@ -1,4 +1,4 @@
-// Utilidades compartidas de interfaz: creación de nodos, foco por teclado y ayudas.
+// Shared UI helpers: node creation, keyboard focus and hint bar.
 
 export function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -7,7 +7,7 @@ export function el(tag, className, text) {
   return node;
 }
 
-// Miniatura de canción: imagen real o inicial sobre degradado.
+// Song thumbnail: real image, or its initial over a gradient.
 export function thumb(song, className) {
   if (song.image) {
     const img = el('img', className);
@@ -18,7 +18,7 @@ export function thumb(song, className) {
   return el('div', className, (song.title[0] || '♪').toUpperCase());
 }
 
-// Barra inferior con las teclas disponibles en la vista actual.
+// Bottom bar listing the keys available in the current view.
 export function hints(pairs) {
   const bar = el('div', 'hints');
   for (const [key, label] of pairs) {
@@ -30,21 +30,21 @@ export function hints(pairs) {
   return bar;
 }
 
-// Marca visualmente el elemento con foco de teclado y lo mantiene a la vista.
+// Highlights the keyboard-focused element and keeps it in view.
 export function applyFocus(nodes, index) {
   nodes.forEach((n, i) => n.classList.toggle('kfocus', i === index));
   const active = nodes[index];
   if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
-// Diálogo modal de confirmación manejable con ←/→, Enter y Escape.
-// Devuelve un objeto con onKey; llama a done(true/false) al decidir.
+// Modal confirmation dialog driven by ←/→, Enter and Escape.
+// Returns an object with onKey; calls done(true/false) once decided.
 export function confirmDialog(message, done) {
   const overlay = el('div', 'overlay');
   const box = el('div', 'dialog');
   box.appendChild(el('p', '', message));
   const row = el('div', 'btn-row');
-  const yes = el('button', 'btn danger', 'Sí');
+  const yes = el('button', 'btn danger', 'Yes');
   const no = el('button', 'btn', 'No');
   row.append(yes, no);
   box.appendChild(row);
@@ -52,7 +52,7 @@ export function confirmDialog(message, done) {
   document.body.appendChild(overlay);
 
   const buttons = [yes, no];
-  let idx = 1; // «No» por defecto
+  let idx = 1; // "No" by default
   applyFocus(buttons, idx);
 
   const finish = (result) => { overlay.remove(); done(result); };

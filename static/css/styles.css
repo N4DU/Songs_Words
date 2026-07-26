@@ -132,6 +132,8 @@ h1 {
 
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
+.top-actions { margin-bottom: 22px; }
+
 .btn {
   border: 2px solid transparent;
   border-radius: 12px;
@@ -221,6 +223,19 @@ input[type="text"]:focus { border-color: var(--accent); }
   object-fit: cover;
   box-shadow: var(--shadow);
   display: block;
+}
+
+.color-row { display: flex; align-items: center; gap: 10px; }
+.color-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+.inline-label { margin: 0; font-weight: 400; color: var(--ink-soft); }
+.color-row input[type="color"] {
+  width: 52px;
+  height: 36px;
+  border: 2px solid var(--accent-soft);
+  border-radius: 8px;
+  background: #fff;
+  padding: 2px;
+  cursor: pointer;
 }
 
 .form-error {
@@ -374,3 +389,74 @@ input[type="text"]:focus { border-color: var(--accent); }
   padding: 40px 20px;
 }
 .empty-state .big { font-size: 2.6rem; margin-bottom: 10px; }
+
+/* ---------- Tema por canción (práctica) ----------
+   El fondo toma el color dominante de la portada, al estilo YT Music:
+   un tono profundo arriba que se funde hacia casi negro. */
+
+body.themed {
+  background: linear-gradient(180deg, var(--theme-a) 0%, var(--theme-b) 60%, #0c1013 100%);
+  background-attachment: fixed;
+}
+
+body.themed .practice-song-title { color: #fff; }
+body.themed .practice-progress { color: rgba(255, 255, 255, 0.75); }
+
+body.themed .practice-cover {
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+}
+
+body.themed .progress-bar { background: rgba(255, 255, 255, 0.16); }
+body.themed .progress-bar > div {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.55), #fff);
+}
+
+body.themed .card {
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.30);
+  color: #fff;
+}
+
+body.themed .prompt-label { color: rgba(255, 255, 255, 0.65); }
+body.themed .prompt-word { color: #fff; }
+
+body.themed input[type="text"] {
+  background: rgba(0, 0, 0, 0.28);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+body.themed input[type="text"]:focus { border-color: rgba(255, 255, 255, 0.7); }
+body.themed input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.4); }
+
+body.themed .feedback.ok { color: #7ee2a8; }
+body.themed .feedback.bad { color: #ff9b94; }
+
+body.themed .prompt-card.flash-ok { animation: flashOkThemed .5s; }
+body.themed .prompt-card.flash-bad { animation: flashBadThemed .5s; }
+
+@keyframes flashOkThemed {
+  0% { background: rgba(126, 226, 168, 0.30); }
+  100% { background: rgba(255, 255, 255, 0.10); }
+}
+@keyframes flashBadThemed {
+  0% { background: rgba(255, 155, 148, 0.30); }
+  100% { background: rgba(255, 255, 255, 0.10); }
+}
+
+body.themed .hints {
+  background: rgba(0, 0, 0, 0.35);
+  border-top-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
+}
+body.themed .hints kbd {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+body.themed .summary h2 { color: #fff; }
+body.themed .summary p { color: rgba(255, 255, 255, 0.8); }
+body.themed .btn { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); }
+body.themed .btn.primary { background: var(--theme-accent); }
