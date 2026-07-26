@@ -1,8 +1,8 @@
-// Cliente de la API JSON del servidor local.
+// Client for the local server's JSON API.
 
 async function asJson(res) {
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Error del servidor');
+  if (!res.ok) throw new Error(data.error || 'Server error');
   return data;
 }
 
@@ -35,8 +35,8 @@ export const saveSettings = (settings) =>
     body: JSON.stringify(settings),
   }).then(asJson);
 
-export const heartbeat = () =>
-  fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+export const hello = () =>
+  fetch('/api/hello', { method: 'POST' }).catch(() => {});
 
 export const shutdown = () =>
   fetch('/api/shutdown', { method: 'POST' }).catch(() => {});

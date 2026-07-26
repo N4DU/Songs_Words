@@ -1,10 +1,17 @@
-"""Construcción de la aplicación Flask que sirve la interfaz y la API."""
+"""Flask application setup: serves the interface and the API."""
 
+import logging
+
+import flask.cli
 from flask import Flask, send_from_directory
 
 from app.api import api
 from app.config import IMAGES_DIR, STATIC_DIR
 from app.database import init_db
+
+# Keep the console clean: no per-request logs, no dev-server banner.
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
+flask.cli.show_server_banner = lambda *args, **kwargs: None
 
 
 def create_app():
