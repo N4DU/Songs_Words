@@ -43,6 +43,41 @@ body {
   background: linear-gradient(180deg, var(--theme-a) 0%, var(--theme-b) 55%, #0a0d11 100%);
 }
 
+/* Blurred rendition of the current cover: during practice the backdrop is
+   woven from the whole image, not a single color, and breathes slowly. */
+.aurora .backdrop {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  filter: blur(64px) saturate(1.45) brightness(0.62);
+  opacity: 0;
+  transition: opacity 1.4s ease;
+}
+
+.aurora .backdrop.on {
+  opacity: 0.85;
+  animation: breathe 44s ease-in-out infinite alternate;
+}
+
+@keyframes breathe {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.12) translate(2%, -1.5%); }
+}
+
+/* Soft dark veil above everything, so text stays readable and the mood
+   stays serious no matter which cover is behind. */
+.aurora::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    rgba(5, 7, 10, 0.16) 0%,
+    rgba(5, 7, 10, 0.38) 55%,
+    rgba(5, 7, 10, 0.66) 100%);
+}
+
 .aurora .blob {
   position: absolute;
   width: 55vmax;
