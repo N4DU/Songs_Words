@@ -1,5 +1,7 @@
 // Shared UI helpers: node creation, keyboard focus and hint bar.
 
+import { t } from './i18n.js';
+
 export function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -60,8 +62,8 @@ export function confirmDialog(message, done) {
   const box = el('div', 'dialog');
   box.appendChild(el('p', '', message));
   const row = el('div', 'btn-row');
-  const yes = el('button', 'btn danger', 'Yes');
-  const no = el('button', 'btn', 'No');
+  const yes = el('button', 'btn danger', t('yes'));
+  const no = el('button', 'btn', t('no'));
   row.append(yes, no);
   box.appendChild(row);
   overlay.appendChild(box);
