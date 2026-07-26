@@ -2,36 +2,89 @@
 
 import * as api from '../api.js';
 import { navigate } from '../main.js';
-import { el, hints } from '../ui.js';
+import { el, hints, confirmDialog } from '../ui.js';
 
 let editingId = null;
 
 let titleInput, imageInput, preview, wordsBox, errorBox, saveBtn, cancelBtn;
 let colorAuto, colorInput;
+let dialog = null;       // active "discard changes?" dialog
+let savedSnapshot = '';  // form state at open, to detect unsaved work
 
 export const editorView = {
   async mount(root, params) {
     editingId = params.id || null;
     const song = editingId ? await api.getSong(editingId) : null;
+    dialog = null;
     render(root, song);
+    savedSnapshot = snapshot();
     titleInput.focus();
   },
 
-  unmount() {},
+  unmount() {
+    dialog = null;
+  },
 
   onKey(e) {
+    if (dialog) { dialog.onKey(e); return; }
     if (e.key === 'Escape') {
       e.preventDefault();
-      navigate('songs');
+      attemptClose();
       return;
     }
+    const isText = e.target.tagName === 'INPUT' && e.target.type === 'text';
     // Enter moves to the next field (and adds new rows at the end).
-    if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type === 'text') {
+    if (e.key === 'Enter' && isText) {
       e.preventDefault();
       advanceFrom(e.target);
+      return;
+    }
+    // Backspace on a completely empty row removes it: the only way to
+    // delete a row without a mouse (the ✕ button is not in the tab order).
+    if (e.key === 'Backspace' && isText) {
+      maybeRemoveRow(e);
+      return;
+    }
+    // ←/→ hop between Save and Cancel once you reach them.
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight')
+        && (e.target === saveBtn || e.target === cancelBtn)) {
+      e.preventDefault();
+      (e.target === saveBtn ? cancelBtn : saveBtn).focus();
     }
   },
 };
+
+function snapshot() {
+  return JSON.stringify({
+    title: titleInput.value.trim(),
+    words: collectWords(),
+    color: colorAuto.checked ? '' : colorInput.value,
+    image: imageInput.files.length,
+  });
+}
+
+// Leaving with unsaved changes deserves a question, not silent data loss.
+function attemptClose() {
+  if (snapshot() === savedSnapshot) { navigate('songs'); return; }
+  const refocus = document.activeElement;
+  if (refocus && refocus.blur) refocus.blur();
+  dialog = confirmDialog('Leave without saving your changes?', (yes) => {
+    dialog = null;
+    if (yes) navigate('songs');
+    else if (refocus && refocus.focus) refocus.focus();
+  });
+}
+
+function maybeRemoveRow(e) {
+  const row = e.target.closest('.word-row');
+  if (!row || e.target.value) return;
+  const filled = [...row.querySelectorAll('input')].some((inp) => inp.value);
+  if (filled || wordsBox.children.length <= 1) return;
+  e.preventDefault();
+  const neighbor = row.previousElementSibling || row.nextElementSibling;
+  row.remove();
+  neighbor.querySelector('[data-field="english"]').focus();
+}
 
 function render(root, song) {
   root.appendChild(el('h1', '', song ? '✎ Edit song' : '＋ New song'));
@@ -99,7 +152,7 @@ function render(root, song) {
   saveBtn = el('button', 'btn primary', '✓ Save');
   saveBtn.onclick = save;
   cancelBtn = el('button', 'btn', '← Cancel');
-  cancelBtn.onclick = () => navigate('songs');
+  cancelBtn.onclick = attemptClose;
   row.append(saveBtn, cancelBtn);
   card.appendChild(row);
 
@@ -107,6 +160,7 @@ function render(root, song) {
   root.appendChild(hints([
     ['Tab', 'next field'],
     ['Enter', 'advance / new word'],
+    ['Backspace', 'empty row: remove it'],
     ['Esc', 'back without saving'],
   ]));
 }
