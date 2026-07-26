@@ -354,6 +354,15 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
 
 /* ---------- Practice ---------- */
 
+/* Fills the viewport height so the exercise sits vertically centered —
+   comfortable even in fullscreen, instead of hugging the top edge. */
+.practice-wrap {
+  min-height: calc(100vh - 122px); /* #app paddings: 32 top + 90 bottom */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .practice-header {
   display: flex;
   align-items: center;

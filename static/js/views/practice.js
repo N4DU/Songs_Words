@@ -80,6 +80,7 @@ function renderCurrent() {
 
   applySongTheme(item.song);
   root_.innerHTML = '';
+  const wrap = el('div', 'practice-wrap');
 
   const header = el('div', 'practice-header');
   header.appendChild(thumb(item.song, 'practice-cover'));
@@ -88,12 +89,12 @@ function renderCurrent() {
   progressText = el('div', 'practice-progress');
   info.appendChild(progressText);
   header.appendChild(info);
-  root_.appendChild(header);
+  wrap.appendChild(header);
 
   const bar = el('div', 'progress-bar');
   progressFill = el('div');
   bar.appendChild(progressFill);
-  root_.appendChild(bar);
+  wrap.appendChild(bar);
 
   promptCard = el('div', 'card prompt-card');
   promptCard.appendChild(el('div', 'prompt-label',
@@ -108,7 +109,8 @@ function renderCurrent() {
 
   feedback = el('div', 'feedback');
   promptCard.appendChild(feedback);
-  root_.appendChild(promptCard);
+  wrap.appendChild(promptCard);
+  root_.appendChild(wrap);
 
   root_.appendChild(hints([
     ['Enter', 'check / continue'],
@@ -184,7 +186,9 @@ function renderSummary() {
   back.onclick = () => navigate('songs');
   row.append(again, back);
   card.appendChild(row);
-  root_.appendChild(card);
+  const wrap = el('div', 'practice-wrap');
+  wrap.appendChild(card);
+  root_.appendChild(wrap);
 
   root_.appendChild(hints([
     ['← →', 'choose'],
