@@ -76,7 +76,12 @@ static/              → frontend, no frameworks
   ├── index.html
   ├── css/styles.css → dark glassmorphism + aurora
   └── js/            → ES modules: views, color engine, keyboard router
+translations.csv     → every interface text, one column per language
+tools/build_i18n.py  → regenerates static/js/i18n.js from the CSV
 ```
+
+To fix or add a translation, edit `translations.csv` — any spreadsheet program
+opens it, and GitHub renders it as a table — then run `python tools/build_i18n.py`.
 
 The color engine (`static/js/color.js`) downsamples each cover on a canvas, extracts its
 dominant hues for the theme, and reuses a tiny blurred copy of the image itself as the

@@ -557,6 +557,25 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
 .dialog p { margin-bottom: 20px; }
 .dialog .btn-row { justify-content: center; }
 
+/* Language picker: compact list opened from the settings' language row. */
+.lang-picker { min-width: 260px; padding: 22px; }
+.lang-picker p {
+  margin-bottom: 12px;
+  font-size: .8rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.lang-list { max-height: 56vh; overflow-y: auto; }
+.lang-item {
+  padding: 9px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.lang-item:hover { background: var(--glass); }
+.lang-item.kfocus { background: var(--glass-strong); color: #fff; }
+
 /* ---------- Goodbye screen ---------- */
 
 .goodbye {
