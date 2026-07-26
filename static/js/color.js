@@ -1,22 +1,36 @@
-// Color engine: extracts dominant colors from cover art and drives the
-// ambient "aurora" background. On the home screen the palette is built
-// from your own songs' covers; during practice it comes from the current
-// song, YT-Music style. A custom color stored on a song overrides it.
+// Color engine: reads each cover and turns it into the app's atmosphere.
+// During practice the backdrop is woven from the whole image — a blurred,
+// darkened rendition of the cover itself, with its main hues drifting as
+// aurora blobs on top. The home screen tints its aurora from your covers.
 
-const cache = new Map(); // song.id -> extracted hex (or null)
+const paletteCache = new Map(); // song.id -> { colors: [hex], tiny: dataURL } | null
 
-async function songColor(song) {
-  if (song.color) return song.color;
+async function songPalette(song) {
   if (!song.image) return null;
-  if (cache.has(song.id)) return cache.get(song.id);
-  const hex = await dominantColor(`/images/${song.image}`).catch(() => null);
-  cache.set(song.id, hex);
-  return hex;
+  if (paletteCache.has(song.id)) return paletteCache.get(song.id);
+  const pal = await analyzeImage(`/images/${song.image}`).catch(() => null);
+  paletteCache.set(song.id, pal);
+  return pal;
 }
 
-// Practice: the whole screen takes the song's hue.
+let themedSongId = null; // avoids re-theming on every word of the same song
+
+// Practice: the whole screen dresses itself with the current song's cover.
+// A manual color on the song replaces the image-based look entirely.
 export async function applySongTheme(song) {
-  setThemeVars(await songColor(song));
+  if (song.id === themedSongId) return;
+  themedSongId = song.id;
+
+  if (!song.color) {
+    const pal = await songPalette(song);
+    if (pal && pal.colors.length) {
+      themeFromPalette(pal.colors);
+      showBackdrop(pal.tiny);
+      return;
+    }
+  }
+  hideBackdrop();
+  setThemeVars(song.color || null);
 }
 
 // Home: tint the aurora blobs with up to three covers, selected songs first.
@@ -25,8 +39,9 @@ export async function applyAmbientFromSongs(songs) {
   const colors = [];
   for (const song of pool) {
     if (colors.length >= 3) break;
-    const hex = await songColor(song);
-    if (hex) colors.push(hex);
+    if (song.color) { colors.push(song.color); continue; }
+    const pal = await songPalette(song);
+    if (pal && pal.colors.length) colors.push(pal.colors[0]);
   }
   const style = document.body.style;
   ['--amb-1', '--amb-2', '--amb-3'].forEach((prop, i) => {
@@ -37,6 +52,7 @@ export async function applyAmbientFromSongs(songs) {
       style.removeProperty(prop);
     }
   });
+  hideBackdrop();
 }
 
 export function clearTheme() {
@@ -45,6 +61,23 @@ export function clearTheme() {
                       '--amb-1', '--amb-2', '--amb-3']) {
     style.removeProperty(prop);
   }
+  hideBackdrop();
+  themedSongId = null;
+}
+
+// The strongest hue drives the base gradient and the accent; up to three
+// of the cover's hues float as soft blobs above the blurred image.
+function themeFromPalette(colors) {
+  const style = document.body.style;
+  const [h, s] = rgbToHsl(...hexToRgb(colors[0]));
+  const st = clampSat(s);
+  style.setProperty('--theme-a', hslCss(h, st, 0.26));
+  style.setProperty('--theme-b', hslCss(h, st * 0.8, 0.09));
+  style.setProperty('--theme-accent', hslCss(h, st, 0.62));
+  ['--amb-1', '--amb-2', '--amb-3'].forEach((prop, i) => {
+    const [hh, ss] = rgbToHsl(...hexToRgb(colors[i % colors.length]));
+    style.setProperty(prop, hslCss(hh, clampSat(ss), 0.42));
+  });
 }
 
 // Deep gradient + blob tones derived from one base color: a saturated dark
@@ -65,13 +98,39 @@ function clampSat(s) {
   return Math.min(Math.max(s, 0.35), 0.7);
 }
 
-// Downscales the image and picks the most frequent hue among reasonably
-// colorful pixels, then averages that bucket.
-function dominantColor(url) {
+// ---------- Blurred image backdrop ----------
+
+function backdropNode() {
+  const aurora = document.querySelector('.aurora');
+  let img = aurora.querySelector('.backdrop');
+  if (!img) {
+    img = document.createElement('img');
+    img.className = 'backdrop';
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    aurora.insertBefore(img, aurora.firstChild); // painted below the blobs
+  }
+  return img;
+}
+
+function showBackdrop(src) {
+  const img = backdropNode();
+  img.src = src;
+  img.classList.add('on');
+}
+
+function hideBackdrop() {
+  const img = document.querySelector('.aurora .backdrop');
+  if (img) img.classList.remove('on');
+}
+
+// Reads the cover once: keeps a tiny copy of it for the blurred backdrop
+// and ranks its hues to build a small palette of its most present colors.
+function analyzeImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const size = 40;
+      const size = 32;
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
@@ -91,16 +150,15 @@ function dominantColor(url) {
         buckets.set(key, bucket);
       }
 
-      let best = null;
-      for (const bucket of buckets.values()) {
-        if (!best || bucket.count > best.count) best = bucket;
-      }
-      if (!best) { resolve(null); return; }
-      resolve(rgbToHex(
-        Math.round(best.r / best.count),
-        Math.round(best.g / best.count),
-        Math.round(best.b / best.count),
-      ));
+      const colors = [...buckets.values()]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 4)
+        .map((k) => rgbToHex(
+          Math.round(k.r / k.count),
+          Math.round(k.g / k.count),
+          Math.round(k.b / k.count),
+        ));
+      resolve({ colors, tiny: canvas.toDataURL() });
     };
     img.onerror = reject;
     img.src = url;
