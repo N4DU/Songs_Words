@@ -1,0 +1,186 @@
+// Editor de canciones: título, imagen representativa y lista de palabras.
+
+import * as api from '../api.js';
+import { navigate } from '../main.js';
+import { el, hints } from '../ui.js';
+
+let editingId = null;
+
+let titleInput, imageInput, preview, wordsBox, errorBox, saveBtn, cancelBtn;
+
+export const editorView = {
+  async mount(root, params) {
+    editingId = params.id || null;
+    const song = editingId ? await api.getSong(editingId) : null;
+    render(root, song);
+    titleInput.focus();
+  },
+
+  unmount() {},
+
+  onKey(e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      navigate('songs');
+      return;
+    }
+    // Enter avanza al siguiente campo (y crea filas nuevas al final).
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type === 'text') {
+      e.preventDefault();
+      advanceFrom(e.target);
+    }
+  },
+};
+
+function render(root, song) {
+  root.appendChild(el('h1', '', song ? '✎ Editar canción' : '＋ Nueva canción'));
+  root.appendChild(el('p', 'subtitle',
+    'Escribe las palabras en inglés y su significado dentro de la canción.'));
+
+  const card = el('div', 'card');
+
+  card.appendChild(el('label', '', 'Título de la canción'));
+  titleInput = el('input');
+  titleInput.type = 'text';
+  titleInput.placeholder = 'Ej.: Yellow — Coldplay';
+  titleInput.value = song ? song.title : '';
+  card.appendChild(titleInput);
+
+  card.appendChild(el('label', '', 'Imagen representativa (opcional)'));
+  imageInput = el('input');
+  imageInput.type = 'file';
+  imageInput.accept = 'image/*';
+  card.appendChild(imageInput);
+  preview = el('img', 'img-preview');
+  preview.style.display = 'none';
+  if (song && song.image) {
+    preview.src = `/images/${song.image}`;
+    preview.style.display = 'block';
+  }
+  imageInput.onchange = () => {
+    const file = imageInput.files[0];
+    if (file) {
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+    }
+  };
+  card.appendChild(preview);
+
+  card.appendChild(el('label', '', 'Palabras'));
+  wordsBox = el('div');
+  card.appendChild(wordsBox);
+  const words = song && song.words.length ? song.words : [{ english: '', spanish: '' }];
+  words.forEach((w) => addRow(w.english, w.spanish));
+
+  errorBox = el('div', 'form-error');
+  card.appendChild(errorBox);
+
+  const row = el('div', 'btn-row');
+  row.style.marginTop = '20px';
+  saveBtn = el('button', 'btn primary', '✓ Guardar');
+  saveBtn.onclick = save;
+  cancelBtn = el('button', 'btn', '← Cancelar');
+  cancelBtn.onclick = () => navigate('songs');
+  row.append(saveBtn, cancelBtn);
+  card.appendChild(row);
+
+  root.appendChild(card);
+  root.appendChild(hints([
+    ['Tab', 'siguiente campo'],
+    ['Enter', 'avanzar / nueva palabra'],
+    ['Esc', 'volver sin guardar'],
+  ]));
+}
+
+function addRow(english = '', spanish = '') {
+  const row = el('div', 'word-row');
+
+  const en = el('input');
+  en.type = 'text';
+  en.placeholder = 'Inglés';
+  en.value = english;
+  en.dataset.field = 'english';
+
+  const es = el('input');
+  es.type = 'text';
+  es.placeholder = 'Español (en el contexto de la canción)';
+  es.value = spanish;
+  es.dataset.field = 'spanish';
+
+  const del = el('button', 'row-del', '✕');
+  del.title = 'Quitar esta palabra';
+  del.tabIndex = -1;
+  del.onclick = () => {
+    if (wordsBox.children.length > 1) row.remove();
+    else { en.value = ''; es.value = ''; }
+  };
+
+  row.append(en, es, del);
+  wordsBox.appendChild(row);
+  return row;
+}
+
+// Enter en un campo de texto: pasa al siguiente; en la última casilla,
+// crea otra fila si hay contenido, o salta a «Guardar» si está vacía.
+function advanceFrom(input) {
+  if (input === titleInput) {
+    wordsBox.querySelector('input').focus();
+    return;
+  }
+  const row = input.closest('.word-row');
+  if (!row) return;
+
+  if (input.dataset.field === 'english') {
+    const spanish = row.querySelector('[data-field="spanish"]');
+    const lastAndEmpty = row === wordsBox.lastElementChild
+      && !input.value.trim() && !spanish.value.trim();
+    if (lastAndEmpty) saveBtn.focus();
+    else spanish.focus();
+    return;
+  }
+
+  const isLast = row === wordsBox.lastElementChild;
+  if (isLast) {
+    const en = row.querySelector('[data-field="english"]').value.trim();
+    if (en || input.value.trim()) addRow().querySelector('input').focus();
+    else saveBtn.focus();
+  } else {
+    row.nextElementSibling.querySelector('input').focus();
+  }
+}
+
+function collectWords() {
+  return [...wordsBox.querySelectorAll('.word-row')].map((row) => ({
+    english: row.querySelector('[data-field="english"]').value.trim(),
+    spanish: row.querySelector('[data-field="spanish"]').value.trim(),
+  })).filter((w) => w.english || w.spanish);
+}
+
+async function save() {
+  errorBox.classList.remove('visible');
+
+  const words = collectWords();
+  const incomplete = words.find((w) => !w.english || !w.spanish);
+  if (incomplete) {
+    showError('Hay palabras incompletas: completa ambas columnas o quítalas.');
+    return;
+  }
+
+  const form = new FormData();
+  form.append('title', titleInput.value.trim());
+  form.append('words', JSON.stringify(words));
+  if (imageInput.files[0]) form.append('image', imageInput.files[0]);
+
+  try {
+    if (editingId) await api.updateSong(editingId, form);
+    else await api.createSong(form);
+    navigate('songs');
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
+function showError(message) {
+  errorBox.textContent = message;
+  errorBox.classList.add('visible');
+}
