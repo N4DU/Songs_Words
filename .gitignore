@@ -1,0 +1,14 @@
+# Datos locales del usuario (canciones, palabras, imágenes, selección)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
