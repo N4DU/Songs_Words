@@ -16,7 +16,7 @@
      Vertical position of the practice card (and the final summary card).
      0px = exact center of the screen; negative values lift it, positive
      values lower it. Tweak this single number to taste. */
-  --practice-lift: -20px;
+  --practice-lift: 35px;
 
   /* Ambient palette: retinted at runtime from the covers of your songs
      (home) or from the current song (practice). */
