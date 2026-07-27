@@ -51,6 +51,53 @@ function buildSections() {
         },
       ],
     },
+    {
+      // One leniency rule per interface language, in the same order as the
+      // language picker, so everyone finds their own near the top.
+      title: t('catPerLang'),
+      rows: [
+        {
+          type: 'toggle', key: 'en_apostrophes',
+          label: t('en_apostrophesLabel'), desc: t('en_apostrophesDesc'),
+        },
+        {
+          type: 'toggle', key: 'es_inverted_marks',
+          label: t('es_inverted_marksLabel'), desc: t('es_inverted_marksDesc'),
+        },
+        {
+          type: 'toggle', key: 'fr_ligatures',
+          label: t('fr_ligaturesLabel'), desc: t('fr_ligaturesDesc'),
+        },
+        {
+          type: 'toggle', key: 'de_eszett',
+          label: t('de_eszettLabel'), desc: t('de_eszettDesc'),
+        },
+        {
+          type: 'toggle', key: 'it_double_consonants',
+          label: t('it_double_consonantsLabel'), desc: t('it_double_consonantsDesc'),
+        },
+        {
+          type: 'toggle', key: 'pt_cedilla',
+          label: t('pt_cedillaLabel'), desc: t('pt_cedillaDesc'),
+        },
+        {
+          type: 'toggle', key: 'ru_yo',
+          label: t('ru_yoLabel'), desc: t('ru_yoDesc'),
+        },
+        {
+          type: 'toggle', key: 'ja_kana',
+          label: t('ja_kanaLabel'), desc: t('ja_kanaDesc'),
+        },
+        {
+          type: 'toggle', key: 'zh_width',
+          label: t('zh_widthLabel'), desc: t('zh_widthDesc'),
+        },
+        {
+          type: 'toggle', key: 'ko_jamo',
+          label: t('ko_jamoLabel'), desc: t('ko_jamoDesc'),
+        },
+      ],
+    },
   ];
 }
 
@@ -60,13 +107,19 @@ let settings = {};
 let nodes = [];
 let root_ = null;
 let picker = null;   // active language picker: { onKey }
+let busy = false;    // a setting change is in flight
 
 export const settingsView = {
   async mount(root) {
+    // Reset before the await: keys pressed while loading must not act on
+    // the previous render's rows.
     root_ = root;
-    settings = await api.getSettings();
     idx = 0;
-    picker = null;
+    rows = [];
+    nodes = [];
+    busy = false;
+    closePicker();
+    settings = await api.getSettings();
     render();
   },
 
@@ -137,18 +190,33 @@ function markFor(row) {
   return settings[row.key] ? 'ON' : 'OFF';
 }
 
+// A held key repeats: one change at a time, and the optimistic mark goes
+// back if the server refuses it.
 async function activate(i) {
   const row = rows[i];
   if (row.type === 'lang') { openPicker(); return; }
+  if (busy) return;
+  busy = true;
+  const before = settings[row.key];
+  try {
+    if (row.type === 'radio') settings[row.key] = row.value;
+    else settings[row.key] = !settings[row.key];
+    refreshMarks();
+    await api.saveSettings({ [row.key]: settings[row.key] });
+  } catch {
+    settings[row.key] = before;
+    refreshMarks();
+  } finally {
+    busy = false;
+  }
+}
 
-  if (row.type === 'radio') settings[row.key] = row.value;
-  else settings[row.key] = !settings[row.key];
+function refreshMarks() {
   nodes.forEach((n, j) => {
     const mark = n.querySelector('.mark');
     mark.textContent = markFor(rows[j]);
     mark.classList.toggle('off', rows[j].type === 'toggle' && !settings[rows[j].key]);
   });
-  await api.saveSettings({ [row.key]: settings[row.key] });
 }
 
 // ---------- Language picker ----------

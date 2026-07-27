@@ -11,28 +11,59 @@ import { applySongTheme, clearTheme } from '../color.js';
 let queue = [];          // [{song, word, translation, retry}]
 let pos = 0;
 let total = 0;
+let totalWords = 0;    // words asked before retries, for the accuracy
 let firstTryHits = 0;
 let direction = 'to_word';
 let retryMissed = true;
 let ignoreAccents = true;
+// One leniency rule per interface language (see normalize()).
+let perLang = {};
 
 let lastParams = {};
 let root_, input, feedback, promptCard, progressFill, progressText;
 let summaryButtons = [];
 let summaryIdx = 0;
 let finished = false;
+// Pending auto-advance timer: it must never fire over another view.
+let advanceTimer = null;
+// Bumped on every mount/unmount so a slow mount can't render after leaving.
+let mountGen = 0;
 
 export const practiceView = {
   async mount(root, params) {
+    const gen = ++mountGen;
+    clearTimeout(advanceTimer);
+    advanceTimer = null;
     root_ = root;
     lastParams = params;
+    summaryButtons = [];
+    summaryIdx = 0;
+    finished = false;
+    queue = [];
+    pos = 0;
+    total = 0;
+    totalWords = 0;
+    firstTryHits = 0;
     const [settings, songs] = await Promise.all([
       api.getSettings(),
       api.getPractice(params.ids),
     ]);
+    if (gen !== mountGen) return; // the user left while loading
     direction = settings.direction;
     retryMissed = settings.retry_missed;
     ignoreAccents = settings.ignore_accents;
+    perLang = {
+      en_apostrophes: settings.en_apostrophes,
+      es_inverted_marks: settings.es_inverted_marks,
+      fr_ligatures: settings.fr_ligatures,
+      de_eszett: settings.de_eszett,
+      it_double_consonants: settings.it_double_consonants,
+      pt_cedilla: settings.pt_cedilla,
+      ru_yo: settings.ru_yo,
+      ja_kana: settings.ja_kana,
+      zh_width: settings.zh_width,
+      ko_jamo: settings.ko_jamo,
+    };
 
     queue = [];
     for (const song of songs) {
@@ -41,6 +72,9 @@ export const practiceView = {
     }
     pos = 0;
     total = queue.length;
+    // Distinct words asked, fixed before any retry is queued: the accuracy
+    // denominator (the same pair can appear in more than one song).
+    totalWords = queue.length;
     firstTryHits = 0;
     finished = false;
 
@@ -49,10 +83,14 @@ export const practiceView = {
   },
 
   unmount() {
+    mountGen++;
+    clearTimeout(advanceTimer);
+    advanceTimer = null;
     clearTheme();
   },
 
   onKey(e) {
+    if (e.isComposing || e.keyCode === 229) return; // typing with an IME
     if (e.key === 'Escape') {
       e.preventDefault();
       navigate('songs');
@@ -90,7 +128,7 @@ function renderCurrent() {
 
   const header = el('div', 'practice-header');
   header.appendChild(thumb(item.song, 'practice-cover'));
-  const info = el('div');
+  const info = el('div', 'practice-info');
   info.appendChild(el('div', 'practice-song-title', item.song.title));
   progressText = el('div', 'practice-progress');
   info.appendChild(progressText);
@@ -138,8 +176,50 @@ function updateProgress() {
   progressFill.style.width = `${(done / total) * 100}%`;
 }
 
+// Comparison is done on normalized strings. Beyond the generic "ignore
+// accents" rule, each interface language gets one leniency rule designed for
+// its script; the order below matters (the German expansion, for instance,
+// must run before accents are stripped so u-umlaut becomes ue and not just u).
+// Regexes use \u escapes on purpose: raw non-ASCII in a regex literal has
+// bitten this file before.
+function shiftCodes(s, re, delta) {
+  return s.replace(re, (c) => String.fromCharCode(c.charCodeAt(0) + delta));
+}
+
 function normalize(s) {
+  // Korean: compose decomposed jamo into full syllables.
+  if (perLang.ko_jamo) s = s.normalize('NFC');
+
   s = s.trim().toLowerCase();
+
+  // Chinese: full-width forms and the ideographic space become ASCII.
+  if (perLang.zh_width) {
+    s = shiftCodes(s, /[\uff01-\uff5e]/g, -0xfee0).replace(/\u3000/g, ' ');
+  }
+  // Japanese: katakana reads as hiragana (the prolonged sound mark stays).
+  if (perLang.ja_kana) s = shiftCodes(s, /[\u30a1-\u30f6]/g, -0x60);
+  // Russian: yo counts as ye.
+  if (perLang.ru_yo) s = s.replace(/\u0451/g, '\u0435');
+  // German: eszett and the umlauts expand the way German spelling does.
+  if (perLang.de_eszett) {
+    s = s.replace(/\u00df/g, 'ss')
+      .replace(/\u00e4/g, 'ae')
+      .replace(/\u00f6/g, 'oe')
+      .replace(/\u00fc/g, 'ue');
+  }
+  // French: the oe and ae ligatures split into two letters.
+  if (perLang.fr_ligatures) {
+    s = s.replace(/\u0153/g, 'oe').replace(/\u00e6/g, 'ae');
+  }
+  // Portuguese: c-cedilla counts as c on its own.
+  if (perLang.pt_cedilla) s = s.replace(/\u00e7/g, 'c');
+  // Spanish: the opening inverted question and exclamation marks are dropped.
+  if (perLang.es_inverted_marks) s = s.replace(/[\u00bf\u00a1]/g, '');
+  // English: apostrophes in every shape are dropped.
+  if (perLang.en_apostrophes) s = s.replace(/['\u2018\u2019`]/g, '');
+  // Italian: a doubled letter counts as a single one.
+  if (perLang.it_double_consonants) s = s.replace(/(\p{L})\1+/gu, '$1');
+
   if (ignoreAccents) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return s;
 }
@@ -157,7 +237,7 @@ function check() {
     feedback.textContent = t('correct');
     promptCard.classList.add('flash-ok');
     input.disabled = true;
-    setTimeout(next, 600);
+    advanceTimer = setTimeout(next, 600);
   } else {
     feedback.className = 'feedback bad';
     feedback.textContent = t('wrongWas', { answer: expected });
@@ -174,11 +254,12 @@ function check() {
       total++;
     }
     // No extra Enter: a pause long enough to read the answer, then on.
-    setTimeout(next, 1800);
+    advanceTimer = setTimeout(next, 1800);
   }
 }
 
 function next() {
+  advanceTimer = null;
   pos++;
   if (pos >= queue.length) renderSummary();
   else renderCurrent();
@@ -186,15 +267,14 @@ function next() {
 
 function renderSummary() {
   finished = true;
-  const uniqueWords = new Set(queue.map((q) => q.word + '¦' + q.translation)).size;
-  const accuracy = uniqueWords ? Math.round((firstTryHits / uniqueWords) * 100) : 0;
+  const accuracy = totalWords ? Math.round((firstTryHits / totalWords) * 100) : 0;
 
   root_.innerHTML = '';
   const card = el('div', 'card summary');
   card.appendChild(el('div', 'big', accuracy === 100 ? '🏆' : accuracy >= 60 ? '🎉' : '💪'));
   card.appendChild(el('h2', '', t('complete')));
   card.appendChild(el('p', '',
-    t('result', { hits: firstTryHits, total: uniqueWords, pct: accuracy })));
+    t('result', { hits: firstTryHits, total: totalWords, pct: accuracy })));
 
   const row = el('div', 'btn-row');
   const again = el('button', 'btn primary', t('again'));

@@ -84,9 +84,9 @@ def main():
     out.append(RUNTIME)
     out.append("export const STRINGS = {")
     for i, code in enumerate(codes):
-        out.append(f"  {code}: {{")
+        out.append(f"  {js(code)}: {{")
         for key, texts in table.items():
-            out.append(f"    {key}: {js(texts[i], ensure_ascii=False)},")
+            out.append(f"    {js(key)}: {js(texts[i], ensure_ascii=False)},")
         out.append("  },")
     out.append("};")
 

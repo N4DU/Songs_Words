@@ -21,7 +21,20 @@ export function navigate(name, params = {}) {
   current = views[name];
   const root = document.getElementById('app');
   root.innerHTML = '';
-  current.mount(root, params);
+  // A failed mount (server gone) would otherwise leave an empty screen.
+  Promise.resolve(current.mount(root, params)).catch(() => showUnreachable());
+}
+
+// Minimal card shown when a view can't load because the server is not there.
+function showUnreachable() {
+  const box = document.createElement('div');
+  box.className = 'goodbye';
+  box.innerHTML = '<div class="big">🔌</div><h2></h2><p></p>';
+  box.querySelector('h2').textContent = t('goodbyeTitle');
+  box.querySelector('p').textContent = t('goodbyeBody');
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  app.appendChild(box);
 }
 
 // Final screen when the user picks "Exit": stops the server
@@ -46,12 +59,17 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Lifecycle: say hello on load and goodbye when the page goes away.
-// A reload sends a new hello in time, so the server only stops when
-// the tab is really closed. No polling involved.
+// A reload sends a new hello in time, so the server only stops when the
+// last tab is really closed. A page restored from the back/forward cache
+// says hello again, since its pagehide already said goodbye. No polling.
 api.hello();
 window.addEventListener('pagehide', () => navigator.sendBeacon('/api/goodbye'));
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) api.hello();
+});
 
 // The interface language lives in settings: load it before the first view.
 api.getSettings()
   .then((s) => setLang(s.language))
+  .catch(() => {})   // no server: navigate() shows the fallback
   .finally(() => navigate('songs'));

@@ -19,20 +19,29 @@ let listNodes = [];
 let buttonNodes = [];
 let actionNodes = [];
 let actionsMenu = null;
+let busy = false;         // a selection change is in flight
 
 export const songsView = {
   async mount(root) {
-    songs = await api.getSongs();
+    // Reset before the await: keys pressed while loading must not reach
+    // the nodes of the previous render, which are already detached.
     zone = 'buttons';
     btnIdx = 0;
+    actionIdx = 0;
+    listNodes = [];
+    buttonNodes = [];
+    actionNodes = [];
+    actionsMenu = null;
+    closeDialog();
+    busy = false;
+    songs = await api.getSongs();
     listIdx = Math.min(listIdx, Math.max(0, songs.length - 1));
-    dialog = null;
     render(root);
     applyAmbientFromSongs(songs);
   },
 
   unmount() {
-    dialog = null;
+    closeDialog();
   },
 
   onKey(e) {
@@ -42,6 +51,11 @@ export const songsView = {
     return onButtonsKey(e);
   },
 };
+
+function closeDialog() {
+  if (dialog) dialog.close();
+  dialog = null;
+}
 
 function render(root) {
   root.innerHTML = '';
@@ -106,9 +120,14 @@ function setZone(z) {
 
 function refreshFocus() {
   applyFocus(listNodes, zone === 'list' ? listIdx : -1);
-  applyFocus(buttonNodes, zone === 'buttons' ? btnIdx : -1);
-  // The buttons sit at the top: make sure the header scrolls back into view.
-  if (zone === 'buttons') window.scrollTo({ top: 0, behavior: 'smooth' });
+  // The buttons sit at the top: scroll the header back into view instead of
+  // letting applyFocus center them (two competing smooth scrolls).
+  if (zone === 'buttons') {
+    buttonNodes.forEach((n, i) => n.classList.toggle('kfocus', i === btnIdx));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    applyFocus(buttonNodes, -1);
+  }
 }
 
 // ---------- Zone: top buttons ----------
@@ -173,12 +192,24 @@ function onListKey(e) {
 
 // Toggles and re-sorts right away (selected first, newest added on top),
 // keeping the focus on the same song wherever it lands.
+// A held key repeats: one change at a time, and the optimistic mark goes
+// back if the server refuses it.
 async function toggleSelected() {
+  if (busy) return;
+  busy = true;
   const song = songs[listIdx];
-  song.selected = song.selected ? 0 : 1;
-  await api.setSelected(song.id, !!song.selected);
-  songs = await api.getSongs();
-  listIdx = Math.max(0, songs.findIndex((s) => s.id === song.id));
+  const before = song.selected;
+  try {
+    song.selected = song.selected ? 0 : 1;
+    await api.setSelected(song.id, !!song.selected);
+    songs = await api.getSongs();
+    listIdx = Math.max(0, songs.findIndex((s) => s.id === song.id));
+  } catch (err) {
+    song.selected = before;
+    toast(err.message);
+  } finally {
+    busy = false;
+  }
   render(document.getElementById('app'));
 }
 
@@ -228,6 +259,8 @@ function onActionsKey(e) {
       closeActions();
       break;
     default:
+      // The menu is open: swallow the keys that would scroll the page.
+      if (e.key === ' ' || e.key.startsWith('Arrow')) break;
       return;
   }
   e.preventDefault();

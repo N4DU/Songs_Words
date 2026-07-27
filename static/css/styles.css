@@ -16,7 +16,7 @@
      Vertical position of the practice card (and the final summary card).
      0px = exact center of the screen; negative values lift it, positive
      values lower it. Tweak this single number to taste. */
-  --practice-lift: -20px;
+  --practice-lift: 35px;
 
   /* Ambient palette: retinted at runtime from the covers of your songs
      (home) or from the current song (practice). */
@@ -408,6 +408,9 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
   flex-shrink: 0;
 }
 
+/* Lets a long unspaced title shrink instead of widening the page. */
+.practice-info { min-width: 0; }
+
 .practice-song-title { font-size: 1.25rem; font-weight: 700; color: #fff; }
 .practice-progress { color: var(--ink-soft); font-size: .9rem; margin-top: 4px; }
 
@@ -437,7 +440,13 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
   margin-bottom: 10px;
 }
 
-.prompt-word { font-size: 2.2rem; font-weight: 700; margin-bottom: 26px; color: #fff; }
+.prompt-word {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 26px;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
 
 .answer-input {
   max-width: 380px;
@@ -554,7 +563,7 @@ input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.35); }
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
-.dialog p { margin-bottom: 20px; }
+.dialog p { margin-bottom: 20px; overflow-wrap: anywhere; }
 .dialog .btn-row { justify-content: center; }
 
 /* Language picker: compact list opened from the settings' language row. */
