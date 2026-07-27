@@ -135,6 +135,18 @@ def settings_get():
         "language": db.get_setting("language", "en"),
         "retry_missed": db.get_setting("retry_missed", "1") == "1",
         "ignore_accents": db.get_setting("ignore_accents", "1") == "1",
+        # One leniency rule per interface language; all on by default except
+        # the Italian one, which would accept too much for most learners.
+        "en_apostrophes": db.get_setting("en_apostrophes", "1") == "1",
+        "es_inverted_marks": db.get_setting("es_inverted_marks", "1") == "1",
+        "fr_ligatures": db.get_setting("fr_ligatures", "1") == "1",
+        "de_eszett": db.get_setting("de_eszett", "1") == "1",
+        "it_double_consonants": db.get_setting("it_double_consonants", "0") == "1",
+        "pt_cedilla": db.get_setting("pt_cedilla", "1") == "1",
+        "ru_yo": db.get_setting("ru_yo", "1") == "1",
+        "ja_kana": db.get_setting("ja_kana", "1") == "1",
+        "zh_width": db.get_setting("zh_width", "1") == "1",
+        "ko_jamo": db.get_setting("ko_jamo", "1") == "1",
     })
 
 
@@ -150,7 +162,10 @@ def settings_put():
         if data["language"] not in LANGUAGES:
             return _error("Invalid language")
         db.set_setting("language", data["language"])
-    for key in ("retry_missed", "ignore_accents"):
+    for key in ("retry_missed", "ignore_accents",
+                "en_apostrophes", "es_inverted_marks", "fr_ligatures",
+                "de_eszett", "it_double_consonants", "pt_cedilla",
+                "ru_yo", "ja_kana", "zh_width", "ko_jamo"):
         if key in data:
             db.set_setting(key, "1" if data[key] else "0")
     return jsonify({"ok": True})

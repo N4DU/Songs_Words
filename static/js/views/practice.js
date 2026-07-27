@@ -15,6 +15,8 @@ let firstTryHits = 0;
 let direction = 'to_word';
 let retryMissed = true;
 let ignoreAccents = true;
+// One leniency rule per interface language (see normalize()).
+let perLang = {};
 
 let lastParams = {};
 let root_, input, feedback, promptCard, progressFill, progressText;
@@ -33,6 +35,18 @@ export const practiceView = {
     direction = settings.direction;
     retryMissed = settings.retry_missed;
     ignoreAccents = settings.ignore_accents;
+    perLang = {
+      en_apostrophes: settings.en_apostrophes,
+      es_inverted_marks: settings.es_inverted_marks,
+      fr_ligatures: settings.fr_ligatures,
+      de_eszett: settings.de_eszett,
+      it_double_consonants: settings.it_double_consonants,
+      pt_cedilla: settings.pt_cedilla,
+      ru_yo: settings.ru_yo,
+      ja_kana: settings.ja_kana,
+      zh_width: settings.zh_width,
+      ko_jamo: settings.ko_jamo,
+    };
 
     queue = [];
     for (const song of songs) {
@@ -138,8 +152,50 @@ function updateProgress() {
   progressFill.style.width = `${(done / total) * 100}%`;
 }
 
+// Comparison is done on normalized strings. Beyond the generic "ignore
+// accents" rule, each interface language gets one leniency rule designed for
+// its script; the order below matters (the German expansion, for instance,
+// must run before accents are stripped so u-umlaut becomes ue and not just u).
+// Regexes use \u escapes on purpose: raw non-ASCII in a regex literal has
+// bitten this file before.
+function shiftCodes(s, re, delta) {
+  return s.replace(re, (c) => String.fromCharCode(c.charCodeAt(0) + delta));
+}
+
 function normalize(s) {
+  // Korean: compose decomposed jamo into full syllables.
+  if (perLang.ko_jamo) s = s.normalize('NFC');
+
   s = s.trim().toLowerCase();
+
+  // Chinese: full-width forms and the ideographic space become ASCII.
+  if (perLang.zh_width) {
+    s = shiftCodes(s, /[\uff01-\uff5e]/g, -0xfee0).replace(/\u3000/g, ' ');
+  }
+  // Japanese: katakana reads as hiragana (the prolonged sound mark stays).
+  if (perLang.ja_kana) s = shiftCodes(s, /[\u30a1-\u30f6]/g, -0x60);
+  // Russian: yo counts as ye.
+  if (perLang.ru_yo) s = s.replace(/\u0451/g, '\u0435');
+  // German: eszett and the umlauts expand the way German spelling does.
+  if (perLang.de_eszett) {
+    s = s.replace(/\u00df/g, 'ss')
+      .replace(/\u00e4/g, 'ae')
+      .replace(/\u00f6/g, 'oe')
+      .replace(/\u00fc/g, 'ue');
+  }
+  // French: the oe and ae ligatures split into two letters.
+  if (perLang.fr_ligatures) {
+    s = s.replace(/\u0153/g, 'oe').replace(/\u00e6/g, 'ae');
+  }
+  // Portuguese: c-cedilla counts as c on its own.
+  if (perLang.pt_cedilla) s = s.replace(/\u00e7/g, 'c');
+  // Spanish: the opening inverted question and exclamation marks are dropped.
+  if (perLang.es_inverted_marks) s = s.replace(/[\u00bf\u00a1]/g, '');
+  // English: apostrophes in every shape are dropped.
+  if (perLang.en_apostrophes) s = s.replace(/['\u2018\u2019`]/g, '');
+  // Italian: a doubled letter counts as a single one.
+  if (perLang.it_double_consonants) s = s.replace(/(\p{L})\1+/gu, '$1');
+
   if (ignoreAccents) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return s;
 }

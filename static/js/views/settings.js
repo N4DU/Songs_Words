@@ -51,6 +51,53 @@ function buildSections() {
         },
       ],
     },
+    {
+      // One leniency rule per interface language, in the same order as the
+      // language picker, so everyone finds their own near the top.
+      title: t('catPerLang'),
+      rows: [
+        {
+          type: 'toggle', key: 'en_apostrophes',
+          label: t('en_apostrophesLabel'), desc: t('en_apostrophesDesc'),
+        },
+        {
+          type: 'toggle', key: 'es_inverted_marks',
+          label: t('es_inverted_marksLabel'), desc: t('es_inverted_marksDesc'),
+        },
+        {
+          type: 'toggle', key: 'fr_ligatures',
+          label: t('fr_ligaturesLabel'), desc: t('fr_ligaturesDesc'),
+        },
+        {
+          type: 'toggle', key: 'de_eszett',
+          label: t('de_eszettLabel'), desc: t('de_eszettDesc'),
+        },
+        {
+          type: 'toggle', key: 'it_double_consonants',
+          label: t('it_double_consonantsLabel'), desc: t('it_double_consonantsDesc'),
+        },
+        {
+          type: 'toggle', key: 'pt_cedilla',
+          label: t('pt_cedillaLabel'), desc: t('pt_cedillaDesc'),
+        },
+        {
+          type: 'toggle', key: 'ru_yo',
+          label: t('ru_yoLabel'), desc: t('ru_yoDesc'),
+        },
+        {
+          type: 'toggle', key: 'ja_kana',
+          label: t('ja_kanaLabel'), desc: t('ja_kanaDesc'),
+        },
+        {
+          type: 'toggle', key: 'zh_width',
+          label: t('zh_widthLabel'), desc: t('zh_widthDesc'),
+        },
+        {
+          type: 'toggle', key: 'ko_jamo',
+          label: t('ko_jamoLabel'), desc: t('ko_jamoDesc'),
+        },
+      ],
+    },
   ];
 }
 
