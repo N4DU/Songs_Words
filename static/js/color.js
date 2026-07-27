@@ -14,18 +14,23 @@ async function songPalette(song) {
 }
 
 let themedSongId = null; // avoids re-theming on every word of the same song
+let themeToken = 0;      // invalidates a theme still waiting for its palette
 
 // Practice: the whole screen dresses itself with the current song's cover.
 // A manual color on the song replaces the image-based look entirely.
 export async function applySongTheme(song) {
   if (song.id === themedSongId) return;
   themedSongId = song.id;
+  const token = ++themeToken;
   scatterBlobs();
 
   if (!song.color) {
     const pal = await songPalette(song);
-    if (pal && pal.colors.length) {
-      themeFromPalette(pal.colors);
+    if (token !== themeToken) return; // the view left while reading the cover
+    // A grey cover gives no hues but the blurred image is still worth it.
+    if (pal && pal.tiny) {
+      if (pal.colors.length) themeFromPalette(pal.colors);
+      else setThemeVars(null);
       showBackdrop(pal.tiny);
       return;
     }
@@ -42,6 +47,7 @@ export async function applyAmbientFromSongs(songs) {
   scatterBlobs();
   hideBackdrop();
   themedSongId = null;
+  themeToken++;
 
   const pool = shuffleArr([...songs]).sort((a, b) => (b.selected || 0) - (a.selected || 0));
   const found = [];
@@ -129,6 +135,7 @@ export function clearTheme() {
   }
   hideBackdrop();
   themedSongId = null;
+  themeToken++;
 }
 
 // The strongest hue drives the base gradient and the accent; up to three
@@ -196,35 +203,41 @@ function analyzeImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const size = 32;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, size, size);
-      const { data } = ctx.getImageData(0, 0, size, size);
+      // Anything thrown here (no 2d context, tainted canvas) would leave the
+      // promise pending forever, so it is turned into a rejection.
+      try {
+        const size = 32;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, size, size);
+        const { data } = ctx.getImageData(0, 0, size, size);
 
-      const buckets = new Map(); // hue bucket -> {count, r, g, b}
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i + 1], b = data[i + 2];
-        const [h, s, l] = rgbToHsl(r, g, b);
-        if (s < 0.2 || l < 0.12 || l > 0.88) continue; // skip greys/extremes
-        const key = Math.round((h * 360) / 24); // 24°-wide buckets
-        const bucket = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
-        bucket.count++;
-        bucket.r += r; bucket.g += g; bucket.b += b;
-        buckets.set(key, bucket);
+        const buckets = new Map(); // hue bucket -> {count, r, g, b}
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          const [h, s, l] = rgbToHsl(r, g, b);
+          if (s < 0.2 || l < 0.12 || l > 0.88) continue; // skip greys/extremes
+          const key = Math.round((h * 360) / 24); // 24°-wide buckets
+          const bucket = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+          bucket.count++;
+          bucket.r += r; bucket.g += g; bucket.b += b;
+          buckets.set(key, bucket);
+        }
+
+        const colors = [...buckets.values()]
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 4)
+          .map((k) => rgbToHex(
+            Math.round(k.r / k.count),
+            Math.round(k.g / k.count),
+            Math.round(k.b / k.count),
+          ));
+        resolve({ colors, tiny: canvas.toDataURL() });
+      } catch (e) {
+        reject(e);
       }
-
-      const colors = [...buckets.values()]
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 4)
-        .map((k) => rgbToHex(
-          Math.round(k.r / k.count),
-          Math.round(k.g / k.count),
-          Math.round(k.b / k.count),
-        ));
-      resolve({ colors, tiny: canvas.toDataURL() });
     };
     img.onerror = reject;
     img.src = url;

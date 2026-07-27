@@ -56,7 +56,9 @@ export function toast(message) {
 }
 
 // Modal confirmation dialog driven by the arrow keys, Enter and Escape.
-// Returns an object with onKey; calls done(true/false) once decided.
+// Returns an object with onKey and close(); calls done(true/false) once
+// decided. The view must call close() when it goes away, or the overlay
+// would stay on top of the next screen.
 export function confirmDialog(message, done) {
   const overlay = el('div', 'overlay');
   const box = el('div', 'dialog');
@@ -78,6 +80,7 @@ export function confirmDialog(message, done) {
   no.onclick = () => finish(false);
 
   return {
+    close() { overlay.remove(); },
     onKey(e) {
       if (e.key.startsWith('Arrow')) {
         idx = idx === 0 ? 1 : 0;
