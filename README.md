@@ -27,7 +27,8 @@ you practice them song by song, with the whole screen taking on the mood of that
 
 It works with any pair of languages: one column holds the word as it is sung, the other holds
 what it means to you. The interface itself is available in ten languages, selectable from the
-settings screen.
+settings screen — and answer checking has a leniency rule designed for each one of them, from
+ß = ss in German to katakana = hiragana in Japanese, each with its own switch in the settings.
 
 No accounts, no cloud, no tracking. Everything lives in a local SQLite database on your machine.
 
