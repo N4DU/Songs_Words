@@ -11,22 +11,28 @@ let titleInput, imageInput, preview, wordsBox, errorBox, saveBtn, cancelBtn;
 let colorAuto, colorInput;
 let dialog = null;       // active "discard changes?" dialog
 let savedSnapshot = '';  // form state at open, to detect unsaved work
+let previewUrl = null;   // blob URL of the chosen cover, to be revoked
 
 export const editorView = {
   async mount(root, params) {
+    // Reset before the await: keys pressed while loading must not reach
+    // the previous render's dialog or fields.
+    closeDialog();
+    revokePreview();
     editingId = params.id || null;
     const song = editingId ? await api.getSong(editingId) : null;
-    dialog = null;
     render(root, song);
     savedSnapshot = snapshot();
     titleInput.focus();
   },
 
   unmount() {
-    dialog = null;
+    closeDialog();
+    revokePreview();
   },
 
   onKey(e) {
+    if (e.isComposing || e.keyCode === 229) return; // typing with an IME
     if (dialog) { dialog.onKey(e); return; }
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -54,6 +60,16 @@ export const editorView = {
     }
   },
 };
+
+function closeDialog() {
+  if (dialog) dialog.close();
+  dialog = null;
+}
+
+function revokePreview() {
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
+}
 
 function snapshot() {
   return JSON.stringify({
@@ -83,8 +99,9 @@ function maybeRemoveRow(e) {
   if (filled || wordsBox.children.length <= 1) return;
   e.preventDefault();
   const neighbor = row.previousElementSibling || row.nextElementSibling;
+  const field = e.target.dataset.field || 'word';
   row.remove();
-  neighbor.querySelector('[data-field="word"]').focus();
+  neighbor.querySelector(`[data-field="${field}"]`).focus();
 }
 
 function render(root, song) {
@@ -114,7 +131,9 @@ function render(root, song) {
   imageInput.onchange = () => {
     const file = imageInput.files[0];
     if (file) {
-      preview.src = URL.createObjectURL(file);
+      revokePreview(); // the previous choice's blob is no longer shown
+      previewUrl = URL.createObjectURL(file);
+      preview.src = previewUrl;
       preview.style.display = 'block';
     }
   };

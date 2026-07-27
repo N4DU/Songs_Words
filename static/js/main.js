@@ -21,7 +21,20 @@ export function navigate(name, params = {}) {
   current = views[name];
   const root = document.getElementById('app');
   root.innerHTML = '';
-  current.mount(root, params);
+  // A failed mount (server gone) would otherwise leave an empty screen.
+  Promise.resolve(current.mount(root, params)).catch(() => showUnreachable());
+}
+
+// Minimal card shown when a view can't load because the server is not there.
+function showUnreachable() {
+  const box = document.createElement('div');
+  box.className = 'goodbye';
+  box.innerHTML = '<div class="big">🔌</div><h2></h2><p></p>';
+  box.querySelector('h2').textContent = t('goodbyeTitle');
+  box.querySelector('p').textContent = t('goodbyeBody');
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  app.appendChild(box);
 }
 
 // Final screen when the user picks "Exit": stops the server
@@ -58,4 +71,5 @@ window.addEventListener('pageshow', (e) => {
 // The interface language lives in settings: load it before the first view.
 api.getSettings()
   .then((s) => setLang(s.language))
+  .catch(() => {})   // no server: navigate() shows the fallback
   .finally(() => navigate('songs'));

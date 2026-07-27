@@ -11,6 +11,7 @@ import { applySongTheme, clearTheme } from '../color.js';
 let queue = [];          // [{song, word, translation, retry}]
 let pos = 0;
 let total = 0;
+let totalWords = 0;    // words asked before retries, for the accuracy
 let firstTryHits = 0;
 let direction = 'to_word';
 let retryMissed = true;
@@ -23,15 +24,31 @@ let root_, input, feedback, promptCard, progressFill, progressText;
 let summaryButtons = [];
 let summaryIdx = 0;
 let finished = false;
+// Pending auto-advance timer: it must never fire over another view.
+let advanceTimer = null;
+// Bumped on every mount/unmount so a slow mount can't render after leaving.
+let mountGen = 0;
 
 export const practiceView = {
   async mount(root, params) {
+    const gen = ++mountGen;
+    clearTimeout(advanceTimer);
+    advanceTimer = null;
     root_ = root;
     lastParams = params;
+    summaryButtons = [];
+    summaryIdx = 0;
+    finished = false;
+    queue = [];
+    pos = 0;
+    total = 0;
+    totalWords = 0;
+    firstTryHits = 0;
     const [settings, songs] = await Promise.all([
       api.getSettings(),
       api.getPractice(params.ids),
     ]);
+    if (gen !== mountGen) return; // the user left while loading
     direction = settings.direction;
     retryMissed = settings.retry_missed;
     ignoreAccents = settings.ignore_accents;
@@ -55,6 +72,9 @@ export const practiceView = {
     }
     pos = 0;
     total = queue.length;
+    // Distinct words asked, fixed before any retry is queued: the accuracy
+    // denominator (the same pair can appear in more than one song).
+    totalWords = queue.length;
     firstTryHits = 0;
     finished = false;
 
@@ -63,10 +83,14 @@ export const practiceView = {
   },
 
   unmount() {
+    mountGen++;
+    clearTimeout(advanceTimer);
+    advanceTimer = null;
     clearTheme();
   },
 
   onKey(e) {
+    if (e.isComposing || e.keyCode === 229) return; // typing with an IME
     if (e.key === 'Escape') {
       e.preventDefault();
       navigate('songs');
@@ -104,7 +128,7 @@ function renderCurrent() {
 
   const header = el('div', 'practice-header');
   header.appendChild(thumb(item.song, 'practice-cover'));
-  const info = el('div');
+  const info = el('div', 'practice-info');
   info.appendChild(el('div', 'practice-song-title', item.song.title));
   progressText = el('div', 'practice-progress');
   info.appendChild(progressText);
@@ -213,7 +237,7 @@ function check() {
     feedback.textContent = t('correct');
     promptCard.classList.add('flash-ok');
     input.disabled = true;
-    setTimeout(next, 600);
+    advanceTimer = setTimeout(next, 600);
   } else {
     feedback.className = 'feedback bad';
     feedback.textContent = t('wrongWas', { answer: expected });
@@ -230,11 +254,12 @@ function check() {
       total++;
     }
     // No extra Enter: a pause long enough to read the answer, then on.
-    setTimeout(next, 1800);
+    advanceTimer = setTimeout(next, 1800);
   }
 }
 
 function next() {
+  advanceTimer = null;
   pos++;
   if (pos >= queue.length) renderSummary();
   else renderCurrent();
@@ -242,15 +267,14 @@ function next() {
 
 function renderSummary() {
   finished = true;
-  const uniqueWords = new Set(queue.map((q) => q.word + '¦' + q.translation)).size;
-  const accuracy = uniqueWords ? Math.round((firstTryHits / uniqueWords) * 100) : 0;
+  const accuracy = totalWords ? Math.round((firstTryHits / totalWords) * 100) : 0;
 
   root_.innerHTML = '';
   const card = el('div', 'card summary');
   card.appendChild(el('div', 'big', accuracy === 100 ? '🏆' : accuracy >= 60 ? '🎉' : '💪'));
   card.appendChild(el('h2', '', t('complete')));
   card.appendChild(el('p', '',
-    t('result', { hits: firstTryHits, total: uniqueWords, pct: accuracy })));
+    t('result', { hits: firstTryHits, total: totalWords, pct: accuracy })));
 
   const row = el('div', 'btn-row');
   const again = el('button', 'btn primary', t('again'));
