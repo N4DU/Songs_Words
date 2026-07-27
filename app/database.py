@@ -30,8 +30,8 @@ CREATE TABLE IF NOT EXISTS settings (
 
 
 def init_db():
-    DATA_DIR.mkdir(exist_ok=True)
-    IMAGES_DIR.mkdir(exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
     with _connect() as conn:
         conn.executescript(SCHEMA)
         _migrate(conn)
@@ -40,23 +40,36 @@ def init_db():
 def _migrate(conn):
     """Bring databases created by older versions up to date."""
     columns = [row[1] for row in conn.execute("PRAGMA table_info(songs)")]
-    if "color" not in columns:
-        conn.execute("ALTER TABLE songs ADD COLUMN color TEXT")
     # The app used to be English/Spanish only; now any language pair works.
     word_columns = [row[1] for row in conn.execute("PRAGMA table_info(words)")]
-    if "english" in word_columns:
-        conn.execute("ALTER TABLE words RENAME COLUMN english TO word")
-        conn.execute("ALTER TABLE words RENAME COLUMN spanish TO translation")
+    if "english" in word_columns and sqlite3.sqlite_version_info < (3, 25):
+        raise RuntimeError(
+            "This database was created by an older version and needs SQLite 3.25 "
+            f"or newer to be migrated (this Python uses {sqlite3.sqlite_version})."
+        )
     row = conn.execute("SELECT value FROM settings WHERE key = 'direction'").fetchone()
-    if row and row[0] in ("es_to_en", "en_to_es"):
-        new = "to_word" if row[0] == "es_to_en" else "to_translation"
-        conn.execute("UPDATE settings SET value = ? WHERE key = 'direction'", (new,))
+    # All at once: a half-applied migration would leave an unusable database.
+    conn.execute("BEGIN")
+    try:
+        if "color" not in columns:
+            conn.execute("ALTER TABLE songs ADD COLUMN color TEXT")
+        if "english" in word_columns:
+            conn.execute("ALTER TABLE words RENAME COLUMN english TO word")
+            conn.execute("ALTER TABLE words RENAME COLUMN spanish TO translation")
+        if row and row[0] in ("es_to_en", "en_to_es"):
+            new = "to_word" if row[0] == "es_to_en" else "to_translation"
+            conn.execute("UPDATE settings SET value = ? WHERE key = 'direction'", (new,))
+    except Exception:
+        conn.rollback()
+        raise
+    conn.commit()
 
 
 def _connect():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
@@ -124,18 +137,20 @@ def _insert_words(conn, song_id, words):
 
 
 def delete_song(song_id):
-    """Delete the song and return its image filename (if it had one)."""
+    """Delete the song and return (deleted?, its image filename or None)."""
     with _connect() as conn:
         row = conn.execute("SELECT image FROM songs WHERE id = ?", (song_id,)).fetchone()
-        conn.execute("DELETE FROM songs WHERE id = ?", (song_id,))
-    return row["image"] if row else None
+        cur = conn.execute("DELETE FROM songs WHERE id = ?", (song_id,))
+    return cur.rowcount > 0, row["image"] if row else None
 
 
 def set_selected(song_id, selected):
+    """Return whether the song existed."""
     with _connect() as conn:
-        conn.execute(
+        cur = conn.execute(
             "UPDATE songs SET selected = ? WHERE id = ?", (1 if selected else 0, song_id)
         )
+    return cur.rowcount > 0
 
 
 def practice_songs(ids=None):
@@ -151,7 +166,9 @@ def practice_songs(ids=None):
             rows = conn.execute(
                 "SELECT id FROM songs WHERE selected = 1 ORDER BY created_at, id"
             ).fetchall()
-    return [get_song(r["id"]) for r in rows]
+    # A song deleted in the meantime simply drops out of the list.
+    songs = (get_song(r["id"]) for r in rows)
+    return [s for s in songs if s is not None]
 
 
 # ---------- Settings ----------

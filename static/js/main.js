@@ -46,10 +46,14 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Lifecycle: say hello on load and goodbye when the page goes away.
-// A reload sends a new hello in time, so the server only stops when
-// the tab is really closed. No polling involved.
+// A reload sends a new hello in time, so the server only stops when the
+// last tab is really closed. A page restored from the back/forward cache
+// says hello again, since its pagehide already said goodbye. No polling.
 api.hello();
 window.addEventListener('pagehide', () => navigator.sendBeacon('/api/goodbye'));
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) api.hello();
+});
 
 // The interface language lives in settings: load it before the first view.
 api.getSettings()

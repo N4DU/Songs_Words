@@ -3,6 +3,7 @@
 import json
 import re
 import uuid
+from urllib.parse import urlsplit
 
 from flask import Blueprint, jsonify, request
 
@@ -15,10 +16,36 @@ api = Blueprint("api", __name__, url_prefix="/api")
 DIRECTIONS = {"to_word", "to_translation"}
 LANGUAGES = {"en", "es", "fr", "de", "it", "pt", "ru", "ja", "zh", "ko"}
 HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+# The server only ever answers the local page; anything reaching it under
+# another name is a DNS-rebinding attempt.
+LOCAL_HOSTS = {"127.0.0.1", "localhost"}
 
 
 def _error(message, status=400):
     return jsonify({"error": message}), status
+
+
+def local_host_guard():
+    """Reject requests addressed to a host other than the loopback one."""
+    if request.host.rsplit(":", 1)[0] not in LOCAL_HOSTS:
+        return _error("Forbidden", 403)
+    return None
+
+
+@api.before_request
+def _guard_api():
+    """Keep the API reachable only from the page this server serves."""
+    blocked = local_host_guard()
+    if blocked is not None:
+        return blocked
+    # Browsers attach Origin to cross-site requests, including the "simple"
+    # ones (form posts, sendBeacon) that no preflight would stop.
+    origin = request.headers.get("Origin")
+    if origin is not None:
+        parts = urlsplit(origin)
+        if parts.scheme != "http" or parts.hostname not in LOCAL_HOSTS:
+            return _error("Forbidden", 403)
+    return None
 
 
 def _save_image(file):
@@ -50,8 +77,13 @@ def _parse_song_form():
         raw = json.loads(request.form.get("words") or "[]")
     except json.JSONDecodeError:
         raise ValueError("Invalid word list")
+    if not isinstance(raw, list) or any(not isinstance(w, dict) for w in raw):
+        raise ValueError("Invalid word list")
     words = [
-        {"word": w.get("word", "").strip(), "translation": w.get("translation", "").strip()}
+        {
+            "word": str(w.get("word") or "").strip(),
+            "translation": str(w.get("translation") or "").strip(),
+        }
         for w in raw
     ]
     words = [w for w in words if w["word"] and w["translation"]]
@@ -76,7 +108,11 @@ def songs_create():
         title, words, color, image = _parse_song_form()
     except ValueError as e:
         return _error(str(e))
-    song_id = db.create_song(title, image, color, words)
+    try:
+        song_id = db.create_song(title, image, color, words)
+    except Exception:
+        _delete_image(image)  # do not leave the upload behind
+        raise
     return jsonify(db.get_song(song_id)), 201
 
 
@@ -97,15 +133,18 @@ def songs_update(song_id):
         title, words, color, image = _parse_song_form()
     except ValueError as e:
         return _error(str(e))
-    if image is not None:
-        _delete_image(current["image"])
     db.update_song(song_id, title, image, color, words)
+    if image is not None:
+        # Only now that the new image is recorded is the old one useless.
+        _delete_image(current["image"])
     return jsonify(db.get_song(song_id))
 
 
 @api.delete("/songs/<int:song_id>")
 def songs_delete(song_id):
-    image = db.delete_song(song_id)
+    deleted, image = db.delete_song(song_id)
+    if not deleted:
+        return _error("Song not found", 404)
     _delete_image(image)
     return jsonify({"ok": True})
 
@@ -113,7 +152,10 @@ def songs_delete(song_id):
 @api.put("/songs/<int:song_id>/selected")
 def songs_select(song_id):
     data = request.get_json(silent=True) or {}
-    db.set_selected(song_id, bool(data.get("selected")))
+    if not isinstance(data, dict):
+        data = {}
+    if not db.set_selected(song_id, bool(data.get("selected"))):
+        return _error("Song not found", 404)
     return jsonify({"ok": True})
 
 
@@ -122,7 +164,12 @@ def songs_select(song_id):
 @api.get("/practice")
 def practice():
     ids_param = request.args.get("ids", "")
-    ids = [int(x) for x in ids_param.split(",") if x.strip().isdigit()]
+    # isdigit() alone would accept digits int() rejects, such as '²'.
+    ids = [
+        int(x.strip())
+        for x in ids_param.split(",")
+        if x.strip().isascii() and x.strip().isdigit()
+    ]
     return jsonify(db.practice_songs(ids or None))
 
 
@@ -154,12 +201,14 @@ def settings_get():
 def settings_put():
     """Partial update: only the keys present in the body are changed."""
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return _error("Invalid settings")
     if "direction" in data:
-        if data["direction"] not in DIRECTIONS:
+        if not isinstance(data["direction"], str) or data["direction"] not in DIRECTIONS:
             return _error("Invalid direction")
         db.set_setting("direction", data["direction"])
     if "language" in data:
-        if data["language"] not in LANGUAGES:
+        if not isinstance(data["language"], str) or data["language"] not in LANGUAGES:
             return _error("Invalid language")
         db.set_setting("language", data["language"])
     for key in ("retry_missed", "ignore_accents",
