@@ -5,6 +5,9 @@ disappear (via `navigator.sendBeacon` on `pagehide`). The server then waits
 a short grace period: if a new page says hello in time (a reload, or the
 same app opened again), the shutdown is cancelled. Explicit shutdown comes
 from the UI's "Exit" option.
+
+Pages are counted, not tracked one at a time: several tabs may be open, so
+the server only leaves when the last one is gone.
 """
 
 import os
@@ -13,29 +16,30 @@ import time
 
 from app.config import SHUTDOWN_GRACE
 
-_pending = None
+_clients = 0
 _lock = threading.Lock()
 
 
 def hello():
-    """A page is alive: cancel any pending shutdown."""
-    global _pending
+    """A page is alive: count it and cancel any pending shutdown."""
+    global _clients
     with _lock:
-        _pending = None
+        _clients += 1
 
 
 def goodbye():
-    """The page is going away: shut down unless another hello arrives."""
-    global _pending
-    token = object()
+    """A page went away: shut down if it was the last one."""
+    global _clients
     with _lock:
-        _pending = token
+        _clients = max(0, _clients - 1)
+        if _clients > 0:
+            return
 
     def _check():
         time.sleep(SHUTDOWN_GRACE)
         with _lock:
-            still_pending = _pending is token
-        if still_pending:
+            alone = _clients == 0
+        if alone:
             os._exit(0)
 
     threading.Thread(target=_check, daemon=True).start()

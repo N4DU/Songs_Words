@@ -3,6 +3,7 @@
 import os
 import random
 import socket
+import sys
 import threading
 import webbrowser
 
@@ -41,6 +42,10 @@ def banner(url):
 
 
 def main():
+    # The banner is not printable in every console encoding (Windows cp1252):
+    # replace what cannot be encoded instead of crashing.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
     app = create_app()
     port = find_free_port(PREFERRED_PORT)
     url = f"http://{HOST}:{port}/"
