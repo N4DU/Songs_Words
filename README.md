@@ -93,4 +93,4 @@ practice backdrop — so the atmosphere comes from the whole artwork, not a sing
 Copyright © 2026 **N4DU**
 
 This project is licensed under the **GNU Affero General Public License v3.0** — see [LICENSE](LICENSE) for details.
-[![GitHub license](https://img.shields.io/github/license/TU-USUARIO/TU-REPOSITORIO)](./LICENSE)
+[![GitHub license](https://img.shields.io/github/license/N4DU/Songs_Words)](./LICENSE)
